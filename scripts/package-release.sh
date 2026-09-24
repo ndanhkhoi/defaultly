@@ -18,7 +18,14 @@ staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
 cp -R "$app" "$staging/"
 ln -s /Applications "$staging/Applications"
-hdiutil create -volname "$app_name" -srcfolder "$staging" -fs HFS+ -format UDZO -ov "dist/$dmg" >/dev/null
+# hdiutil occasionally fails with "Resource busy" on CI runners; a retry is enough.
+for attempt in 1 2 3; do
+    if hdiutil create -volname "$app_name" -srcfolder "$staging" -fs HFS+ -format UDZO -ov "dist/$dmg" >/dev/null; then
+        break
+    fi
+    [[ $attempt -lt 3 ]] || { echo "error: hdiutil create failed" >&2; exit 1; }
+    sleep 5
+done
 
 (cd dist && shasum -a 256 "$zip" "$dmg" > SHA256SUMS.txt)
 echo "Packaged dist/$zip and dist/$dmg"

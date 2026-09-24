@@ -7,8 +7,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 app_name="Defaultly"
-version="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)}"
+version="${VERSION:-$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo 0.0.0)}"
 version="${version#v}"
+if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+    echo "error: version must look like 1.2.3, got '$version'" >&2
+    exit 1
+fi
 build_number="${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 archs="${ARCHS:-$(uname -m)}"
 app="dist/$app_name.app"
