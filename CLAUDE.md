@@ -38,7 +38,9 @@ Read `docs/system-architecture.md` first; `docs/project-overview-pdr.md` is the 
   `docs/system-architecture.md` and `docs/code-signing-and-notarization.md`.
 - Applying is two-phase (`AssociationService.apply`): an instant LaunchServices write for everything, a read-back,
   then the `NSWorkspace` API only for what macOS ignored (it can show a system confirmation). Do not switch bulk
-  writes to `NSWorkspace` alone: it takes about 2 s per content type.
+  writes to `NSWorkspace` alone: it takes about 2 s per content type. Exception, macOS 27+: the instant write queues
+  a system confirmation per content type and returns before the answer (`instantWritesAreSilent` is false), so only
+  `NSWorkspace` is used there, which asks once per format and reports "Keep" as a decline.
 
 ## Conventions
 
