@@ -13,7 +13,7 @@ struct ChangeReviewList: View {
             Section {
                 ForEach(group.items) { item in
                     Toggle(isOn: isIncluded(item.id)) {
-                        ChangeRow(item: item, showsTarget: showsTarget)
+                        ChangeRow(item: item, tint: model.tint(for: item.format), showsTarget: showsTarget)
                     }
                     .toggleStyle(.checkbox)
                 }
@@ -63,14 +63,15 @@ struct ChangeReviewList: View {
     }
 }
 
+/// A list row: takes plain values and never reads the environment (see `FormatRow`).
 private struct ChangeRow: View {
-    @Environment(AppModel.self) private var model
     let item: PlanItem
+    let tint: Color
     let showsTarget: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            ExtensionBadge(ext: item.format.ext, tint: model.tint(for: item.format))
+            ExtensionBadge(ext: item.format.ext, tint: tint)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: item.format.displayName).lineLimit(1)
                 HStack(spacing: 4) {

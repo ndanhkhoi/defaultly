@@ -58,15 +58,16 @@ struct FlowLayout: Layout {
 }
 
 /// Badges for a list of formats, capped so long lists stay scannable.
+/// Lives inside form rows, so it takes its colors as a parameter instead of reading the environment.
 struct FormatBadges: View {
-    @Environment(AppModel.self) private var model
     let formats: [FileFormat]
+    let tint: (FileFormat) -> Color
     var limit = 40
 
     var body: some View {
         FlowLayout {
             ForEach(formats.prefix(limit)) { format in
-                ExtensionBadge(ext: format.ext, tint: model.tint(for: format))
+                ExtensionBadge(ext: format.ext, tint: tint(format))
                     .help(format.displayName)
             }
             if formats.count > limit {

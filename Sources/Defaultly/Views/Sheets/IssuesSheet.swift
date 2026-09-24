@@ -20,10 +20,14 @@ struct IssuesSheet: View {
             .padding(16)
 
             List(summary.issues) { issue in
-                IssueRow(issue: issue) { app in
-                    let assignment = Assignment(ext: issue.assignment.ext, app: app)
-                    Task { await model.apply([assignment], named: AppModel.title(setting: app, count: 1), undoManager: undoManager) }
-                    dismiss()
+                let format = model.library.format(for: issue.assignment.ext)
+                IssueRow(
+                    issue: issue,
+                    name: format?.displayName ?? issue.assignment.ext.description,
+                    tint: format.map(model.tint(for:)) ?? .gray,
+                    isApplying: model.isApplying
+                ) {
+                    chooseAnotherApp(for: issue.assignment.ext)
                 }
             }
 
@@ -43,29 +47,33 @@ struct IssuesSheet: View {
         }
         .frame(width: 560, height: 440)
     }
+
+    private func chooseAnotherApp(for ext: FileExtension) {
+        guard let app = AppChoice.pickApp(model: model, navigation: navigation) else { return }
+        Task { await model.apply([Assignment(ext: ext, app: app)], named: AppModel.title(setting: app, count: 1), undoManager: undoManager) }
+        dismiss()
+    }
 }
 
+/// A list row: takes plain values and never reads the environment (see `FormatRow`).
 private struct IssueRow: View {
-    @Environment(AppModel.self) private var model
-    @Environment(Navigation.self) private var navigation
     let issue: AssignmentOutcome
-    let chooseApp: (AppInfo) -> Void
+    let name: String
+    let tint: Color
+    let isApplying: Bool
+    let chooseAnotherApp: () -> Void
 
     var body: some View {
-        let ext = issue.assignment.ext
-        let format = model.library.format(for: ext)
         HStack(alignment: .top, spacing: 10) {
-            ExtensionBadge(ext: ext, tint: format.map(model.tint(for:)) ?? .gray)
+            ExtensionBadge(ext: issue.assignment.ext, tint: tint)
             VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: format?.displayName ?? ext.description).font(.headline)
+                Text(verbatim: name).font(.headline)
                 Text(verbatim: reason).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Button("Choose Another App…") {
-                if let app = AppChoice.pickApp(model: model, navigation: navigation) { chooseApp(app) }
-            }
-            .controlSize(.small)
-            .disabled(model.isApplying)
+            Button("Choose Another App…", action: chooseAnotherApp)
+                .controlSize(.small)
+                .disabled(isApplying)
         }
         .padding(.vertical, 4)
     }

@@ -32,6 +32,19 @@ struct BackupTests {
         }
     }
 
+    @Test func dropsRepeatedExtensionsFromHandEditedFiles() throws {
+        let json = """
+        {"version": 1, "createdAt": "2026-09-24T10:00:00Z",
+         "associations": [
+           {"ext": "pdf", "bundleID": "com.apple.Preview", "appName": "Preview"},
+           {"ext": "pdf", "bundleID": "com.adobe.Reader", "appName": "Reader"}],
+         "customFormats": [{"ext": "zzq", "categoryID": "code"}, {"ext": "zzq", "categoryID": "custom"}]}
+        """
+        let backup = try AssociationBackup.decode(Data(json.utf8))
+        #expect(backup.associations.map(\.bundleID) == ["com.apple.Preview"])
+        #expect(backup.customFormats.map(\.categoryID) == ["code"])
+    }
+
     @Test func previewListsChangesMissingAppsAndNewCustomFormats() {
         let backup = AssociationBackup(
             statuses: [

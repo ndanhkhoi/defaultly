@@ -52,7 +52,7 @@ private struct AppDetailContent: View {
                     Text("\(app.name) isn't the default app for any format yet.")
                         .foregroundStyle(.secondary)
                 } else {
-                    FormatBadges(formats: opened, limit: 60)
+                    FormatBadges(formats: opened, tint: model.tint(for:), limit: 60)
                 }
             } header: {
                 Text("Default for \(opened.count) formats")

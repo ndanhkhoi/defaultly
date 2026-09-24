@@ -1,9 +1,13 @@
 import DefaultlyCore
 import SwiftUI
 
+/// Everything a row shows, resolved up front: table cells must not read the environment,
+/// because macOS keeps updating cells of removed rows after they leave the view hierarchy.
 struct FormatRow: Identifiable {
     let format: FileFormat
     let status: FormatStatus?
+    let tint: Color
+    let categoryName: String
 
     var id: FileExtension { format.ext }
     var ext: String { format.ext.rawValue }
@@ -21,7 +25,14 @@ struct FormatTableView: View {
     var body: some View {
         @Bindable var navigation = navigation
         let formats = model.formats(in: scope)
-        let rows = formats.map { FormatRow(format: $0, status: model.statuses[$0.ext]) }
+        let rows = formats.map { format in
+            FormatRow(
+                format: format,
+                status: model.statuses[format.ext],
+                tint: model.tint(for: format),
+                categoryName: model.category(of: format)?.displayName ?? ""
+            )
+        }
         let sortedRows = isSearch ? rows : rows.sorted(using: sortOrder)
 
         Group {
@@ -30,7 +41,7 @@ struct FormatTableView: View {
             } else {
                 Table(sortedRows, selection: $navigation.formatSelection, sortOrder: $sortOrder) {
                     TableColumn("Format", value: \.ext) { row in
-                        FormatCell(format: row.format, showsCategory: showsCategory)
+                        FormatCell(row: row, showsCategory: showsCategory)
                     }
                     .width(min: 180, ideal: 260)
                     TableColumn("Opens With", value: \.appName) { row in
@@ -39,7 +50,7 @@ struct FormatTableView: View {
                     .width(min: 140, ideal: 200)
                 }
                 .contextMenu(forSelectionType: FileExtension.self) { selection in
-                    FormatContextMenu(formats: formats.filter { selection.contains($0.ext) })
+                    FormatContextMenu(formats: formats.filter { selection.contains($0.ext) }, model: model, navigation: navigation)
                 }
             }
         }
@@ -110,17 +121,16 @@ struct FormatTableView: View {
 }
 
 private struct FormatCell: View {
-    @Environment(AppModel.self) private var model
-    let format: FileFormat
+    let row: FormatRow
     let showsCategory: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            ExtensionBadge(ext: format.ext, tint: model.tint(for: format))
+            ExtensionBadge(ext: row.format.ext, tint: row.tint)
             VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: format.displayName).lineLimit(1)
-                if showsCategory, let category = model.category(of: format) {
-                    Text(verbatim: category.displayName)
+                Text(verbatim: row.format.displayName).lineLimit(1)
+                if showsCategory {
+                    Text(verbatim: row.categoryName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -149,17 +159,18 @@ private struct DefaultAppCell: View {
     }
 }
 
-/// Row actions; the same "Open With" items as the toolbar.
+/// Row actions; the same "Open With" items as the toolbar. Gets the model explicitly because
+/// AppKit hosts context menus outside the view hierarchy (see `FormatRow`).
 private struct FormatContextMenu: View {
-    @Environment(AppModel.self) private var model
-    @Environment(Navigation.self) private var navigation
     @Environment(\.undoManager) private var undoManager
     let formats: [FileFormat]
+    let model: AppModel
+    let navigation: Navigation
 
     var body: some View {
         if !formats.isEmpty {
             Menu("Open With") {
-                AppChoiceMenuItems(formats: formats)
+                AppChoiceMenuItems(formats: formats, model: model, navigation: navigation)
             }
             Divider()
             if formats.count == 1, let format = formats.first {

@@ -67,7 +67,7 @@ struct FormatDetailView: View {
                 Section("Related Formats") {
                     Text("\(related.app.name) can also open \(related.formats.count) related formats that currently open with other apps.")
                         .fixedSize(horizontal: false, vertical: true)
-                    FormatBadges(formats: related.formats)
+                    FormatBadges(formats: related.formats, tint: model.tint(for:))
                     Button("Use \(related.app.name) for These Too") {
                         let assignments = related.formats.map { Assignment(ext: $0.ext, app: related.app) }
                         let title = AppModel.title(setting: related.app, count: assignments.count)

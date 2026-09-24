@@ -18,7 +18,8 @@ struct SetupListView: View {
             }
             Section("Categories") {
                 ForEach(setupCategories) { category in
-                    CategorySetupRow(category: category).tag(SetupTarget.category(category.id))
+                    CategorySetupRow(category: category, mostlyOpenedWith: model.currentDefaults(for: category.formats).first?.app)
+                        .tag(SetupTarget.category(category.id))
                 }
             }
         }
@@ -52,9 +53,10 @@ private struct SuiteRow: View {
     }
 }
 
+/// A list row: takes plain values and never reads the environment (see `FormatRow`).
 private struct CategorySetupRow: View {
-    @Environment(AppModel.self) private var model
     let category: FileCategory
+    let mostlyOpenedWith: AppInfo?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -66,8 +68,8 @@ private struct CategorySetupRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(verbatim: category.displayName)
                 Group {
-                    if let mostly = model.currentDefaults(for: category.formats).first {
-                        Text("Mostly \(mostly.app.name) · \(category.formats.count) formats")
+                    if let mostly = mostlyOpenedWith {
+                        Text("Mostly \(mostly.name) · \(category.formats.count) formats")
                     } else {
                         Text("\(category.formats.count) formats")
                     }

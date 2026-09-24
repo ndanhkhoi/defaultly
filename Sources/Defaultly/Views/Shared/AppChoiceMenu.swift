@@ -4,11 +4,12 @@ import SwiftUI
 /// "Open With" for one or more formats: ranked supporting apps, then any other app.
 struct AppChoiceMenu: View {
     @Environment(AppModel.self) private var model
+    @Environment(Navigation.self) private var navigation
     let formats: [FileFormat]
 
     var body: some View {
         Menu {
-            AppChoiceMenuItems(formats: formats)
+            AppChoiceMenuItems(formats: formats, model: model, navigation: navigation)
         } label: {
             Label("Open With", systemImage: "arrow.up.forward.app")
         }
@@ -17,11 +18,13 @@ struct AppChoiceMenu: View {
     }
 }
 
+/// Menu content is hosted by AppKit menus, so it gets the model explicitly rather than
+/// through the environment (see `FormatRow`).
 struct AppChoiceMenuItems: View {
-    @Environment(AppModel.self) private var model
-    @Environment(Navigation.self) private var navigation
     @Environment(\.undoManager) private var undoManager
     let formats: [FileFormat]
+    let model: AppModel
+    let navigation: Navigation
 
     private let visibleCount = 8
 

@@ -48,8 +48,13 @@ public struct AssociationBackup: Codable, Equatable, Sendable {
     public static func decode(_ data: Data) throws -> AssociationBackup {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let backup = try decoder.decode(AssociationBackup.self, from: data)
+        var backup = try decoder.decode(AssociationBackup.self, from: data)
         guard backup.version <= currentVersion else { throw BackupError.unsupportedVersion(backup.version) }
+        // A hand-edited file may repeat an extension; the first entry wins.
+        var seenAssociations = Set<FileExtension>()
+        backup.associations = backup.associations.filter { seenAssociations.insert($0.ext).inserted }
+        var seenCustomFormats = Set<FileExtension>()
+        backup.customFormats = backup.customFormats.filter { seenCustomFormats.insert($0.ext).inserted }
         return backup
     }
 }
