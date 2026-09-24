@@ -45,6 +45,12 @@ struct FormatLibraryTests {
         #expect(results.allSatisfy { $0.categoryID == "spreadsheets" })
     }
 
+    @Test func searchIgnoresAccents() {
+        let results = FormatLibrary().search("bang tinh") { $0.categoryID == "spreadsheets" ? "Bảng tính" : $0.name }
+        #expect(!results.isEmpty)
+        #expect(results.allSatisfy { $0.categoryID == "spreadsheets" })
+    }
+
     @Test func emptySearchReturnsNothing() {
         #expect(FormatLibrary().search("  ").isEmpty)
     }

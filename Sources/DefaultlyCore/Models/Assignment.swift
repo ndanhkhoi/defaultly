@@ -42,8 +42,6 @@ public struct ApplyReport: Sendable {
         self.outcomes = outcomes
     }
 
-    public var appliedCount: Int { outcomes.count - issues.count }
-
     public var issues: [AssignmentOutcome] {
         outcomes.filter { $0.result != .applied }
     }

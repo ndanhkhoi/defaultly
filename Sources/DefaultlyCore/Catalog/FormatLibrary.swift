@@ -58,18 +58,20 @@ public struct FormatLibrary: Sendable {
     }
 
     /// Ranks exact extension matches first, then extension prefixes, then name matches.
-    /// `localizedName` lets the UI match names in the user's language as well as in English.
+    /// `localizedName` lets the UI match names in the user's language as well as in English;
+    /// names match without accents, so "bang tinh" finds "Bảng tính".
     public func search(_ query: String, localizedName: (FileFormat) -> String = \.name) -> [FileFormat] {
-        var needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if needle.hasPrefix("*") { needle.removeFirst() }
-        if needle.hasPrefix(".") { needle.removeFirst() }
+        let needle = FileExtension.normalized(query)
         guard !needle.isEmpty else { return [] }
 
+        func matchesName(_ name: String) -> Bool {
+            name.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
         func rank(_ format: FileFormat) -> Int? {
             let ext = format.ext.rawValue
             if ext == needle { return 0 }
             if ext.hasPrefix(needle) { return 1 }
-            if format.name.lowercased().contains(needle) || localizedName(format).lowercased().contains(needle) { return 2 }
+            if matchesName(format.name) || matchesName(localizedName(format)) { return 2 }
             return nil
         }
 

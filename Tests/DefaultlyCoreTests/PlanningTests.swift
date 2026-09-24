@@ -18,6 +18,21 @@ struct PlanBuilderTests {
         #expect(items.first?.current == .word)
     }
 
+    @Test func inclusionPolicyDecidesWhatStartsChecked() {
+        #expect(PlanBuilder.items(for: formats, assigning: .libre, statuses: statuses, including: .all).map(\.isIncluded) == [true, true])
+        #expect(PlanBuilder.items(for: formats, assigning: .libre, statuses: statuses, including: .none).map(\.isIncluded) == [false, false])
+    }
+
+    @Test func recomputedPlansKeepTheUsersChoices() {
+        var previous = PlanBuilder.items(for: formats, assigning: .libre, statuses: statuses)
+        previous[0].isIncluded = false
+        previous[1].isIncluded = true
+        let refreshed = PlanBuilder.items(for: [.fake("docx"), .fake("pages"), .fake("odt")], assigning: .libre, statuses: statuses)
+        let kept = PlanBuilder.keepingChoices(of: previous, in: refreshed)
+        #expect(kept.map(\.id) == [.ext("docx"), .ext("pages"), .ext("odt")])
+        #expect(kept.map(\.isIncluded) == [false, true, false])
+    }
+
     @Test func skipsFormatsWithoutATarget() {
         let items = PlanBuilder.items(for: formats, statuses: statuses) { $0.ext.rawValue == "doc" ? .word : nil }
         #expect(items.map(\.assignment) == [Assignment(ext: .ext("doc"), app: .word)])

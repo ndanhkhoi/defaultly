@@ -74,10 +74,6 @@ public struct AssociationService: Sendable {
         })
     }
 
-    public func app(at url: URL) -> AppInfo? {
-        apps.app(at: url)
-    }
-
     /// LaunchServices takes up to a second or two to report a change; returns what never showed up.
     private func awaitConfirmation(of assignments: [Assignment]) async -> [Assignment] {
         let deadline = ContinuousClock.now + verificationTimeout
@@ -85,7 +81,11 @@ public struct AssociationService: Sendable {
         while true {
             pending = pending.filter { !$0.app.isSameApp(as: currentApp(for: $0.ext)) }
             if pending.isEmpty || ContinuousClock.now >= deadline { return pending }
-            try? await Task.sleep(for: .milliseconds(100))
+            do {
+                try await Task.sleep(for: .milliseconds(100))
+            } catch {
+                return pending // cancelled
+            }
         }
     }
 

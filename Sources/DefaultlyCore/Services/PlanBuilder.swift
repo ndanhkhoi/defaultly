@@ -14,12 +14,22 @@ public struct PlanItem: Identifiable, Hashable, Sendable {
 }
 
 public enum PlanBuilder {
+    /// Which pending changes start checked.
+    public enum Inclusion: Sendable {
+        /// Only formats the target app declares, so nothing surprising happens by default.
+        case supportedOnly
+        /// Everything, when the user already chose each change (e.g. restoring a backup).
+        case all
+        /// Nothing, when the list is a set of suggestions to pick from.
+        case none
+    }
+
     /// Pending changes that make `target(format)` the default for each format.
     /// Formats already opened by their target, or without a target, are left out.
-    /// Unsupported formats start excluded so nothing surprising happens by default.
     public static func items(
         for formats: [FileFormat],
         statuses: [FileExtension: FormatStatus],
+        including inclusion: Inclusion = .supportedOnly,
         target: (FileFormat) -> AppInfo?
     ) -> [PlanItem] {
         formats.compactMap { format in
@@ -27,11 +37,31 @@ public enum PlanBuilder {
             let status = statuses[format.ext]
             guard !app.isSameApp(as: status?.current) else { return nil }
             let isSupported = status?.supports(app) ?? false
-            return PlanItem(format: format, target: app, current: status?.current, isSupported: isSupported, isIncluded: isSupported)
+            let isIncluded = switch inclusion {
+            case .supportedOnly: isSupported
+            case .all: true
+            case .none: false
+            }
+            return PlanItem(format: format, target: app, current: status?.current, isSupported: isSupported, isIncluded: isIncluded)
         }
     }
 
-    public static func items(for formats: [FileFormat], assigning app: AppInfo, statuses: [FileExtension: FormatStatus]) -> [PlanItem] {
-        items(for: formats, statuses: statuses) { _ in app }
+    public static func items(
+        for formats: [FileFormat],
+        assigning app: AppInfo,
+        statuses: [FileExtension: FormatStatus],
+        including inclusion: Inclusion = .supportedOnly
+    ) -> [PlanItem] {
+        items(for: formats, statuses: statuses, including: inclusion) { _ in app }
+    }
+
+    /// A recomputed plan keeps the user's checkboxes for the changes that are still pending.
+    public static func keepingChoices(of previous: [PlanItem], in items: [PlanItem]) -> [PlanItem] {
+        let choices = Dictionary(previous.map { ($0.id, $0.isIncluded) }, uniquingKeysWith: { first, _ in first })
+        return items.map { item in
+            var item = item
+            item.isIncluded = choices[item.id] ?? item.isIncluded
+            return item
+        }
     }
 }

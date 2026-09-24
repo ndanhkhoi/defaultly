@@ -1,7 +1,7 @@
 import Foundation
 
 /// A color family used to tell categories apart; the UI maps it to a concrete color.
-public enum CategoryTint: String, Sendable, Codable, CaseIterable {
+public enum CategoryTint: Sendable {
     case blue, green, orange, red, brown, gray, cyan, indigo, teal, pink, purple, yellow, mint
 }
 

@@ -8,13 +8,19 @@ public struct FileExtension: Hashable, Comparable, Sendable, CustomStringConvert
     /// Accepts user input such as `docx`, `.DOCX` or `*.docx`.
     /// Returns nil when the input cannot be a single filename extension.
     public init?(_ input: String) {
-        var value = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if value.hasPrefix("*") { value.removeFirst() }
-        if value.hasPrefix(".") { value.removeFirst() }
+        let value = Self.normalized(input)
         guard (1...32).contains(value.count),
               value.unicodeScalars.allSatisfy(Self.allowedCharacters.contains)
         else { return nil }
         rawValue = value
+    }
+
+    /// `  *.DOCX ` → `docx`, without validating the result.
+    public static func normalized(_ input: String) -> String {
+        var value = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if value.hasPrefix("*") { value.removeFirst() }
+        if value.hasPrefix(".") { value.removeFirst() }
+        return value
     }
 
     /// `.docx`

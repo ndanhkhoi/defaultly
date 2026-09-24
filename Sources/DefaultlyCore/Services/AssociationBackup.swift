@@ -86,12 +86,7 @@ public struct RestorePreview: Sendable {
         }
         missingApps = missing
         let formats = backup.associations.compactMap { library.format(for: $0.ext) }
-        items = PlanBuilder.items(for: formats, statuses: statuses) { targets[$0.ext] }
-            .map { item in
-                // Restoring is explicit: include everything the user had before, supported or not.
-                var item = item
-                item.isIncluded = true
-                return item
-            }
+        // Restoring is explicit: include everything the user had before, supported or not.
+        items = PlanBuilder.items(for: formats, statuses: statuses, including: .all) { targets[$0.ext] }
     }
 }

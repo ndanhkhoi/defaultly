@@ -68,7 +68,6 @@ struct ApplyReportTests {
         ])
         #expect(report.undoAssignments == [Assignment(ext: .ext("docx"), app: .word)])
         #expect(report.redoAssignments == [Assignment(ext: .ext("docx"), app: .libre)])
-        #expect(report.appliedCount == 3)
         #expect(report.issues.map(\.id) == [.ext("doc"), .ext("dot")])
     }
 }
