@@ -15,7 +15,7 @@ test:
 	swift test $(TEST_FLAGS)
 
 integration-test:
-	DEFAULTLY_INTEGRATION=1 swift test $(TEST_FLAGS) --filter LaunchServicesIntegrationTests
+	DEFAULTLY_INTEGRATION=1 swift test $(TEST_FLAGS) --filter 'LaunchServicesIntegrationTests|UpdateIntegrationTests'
 
 smoke-test:
 	scripts/smoke-test.sh
