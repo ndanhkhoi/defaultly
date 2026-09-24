@@ -31,7 +31,7 @@ final class UpdateController {
         case available(AvailableUpdate)
         /// `progress` is nil once the download is being verified and unpacked.
         case installing(AvailableUpdate, progress: Double?)
-        /// Downloaded and verified in the background; installed when the app quits.
+        /// Downloaded and verified, in the background or while the window was closed; installed when the app quits.
         case ready(PreparedUpdate, AvailableUpdate)
         /// Installed, but the new version couldn't be started.
         case installed(AppVersion)
@@ -72,6 +72,8 @@ final class UpdateController {
     @ObservationIgnored private var schedule: Task<Void, Never>?
     /// The user is looking at the window, so results and errors are shown rather than kept quiet.
     @ObservationIgnored private var isInteractive = false
+    /// The `ready` update was asked for with Install and Relaunch, so changing the automatic settings keeps it.
+    @ObservationIgnored private var readyWasRequested = false
     @ObservationIgnored private var whatsNewPending: Bool
 
     init(
@@ -108,7 +110,7 @@ final class UpdateController {
     /// Starts, or restarts, the timer for daily automatic checks. Never interrupts a running check or download.
     func start() {
         schedule?.cancel()
-        guard automaticallyChecks, currentVersion != nil else { return }
+        guard checksAutomatically, currentVersion != nil else { return }
         schedule = Task { [weak self] in
             // Let the main window and the first scan settle first.
             try? await Task.sleep(for: .seconds(5))
@@ -122,8 +124,13 @@ final class UpdateController {
 
     /// Starts an automatic check when one is due and nothing else is going on.
     func checkIfDue(now: Date = .now) {
-        guard automaticallyChecks, phase == .idle, UpdateSchedule.isDue(lastCheck: lastCheck, now: now) else { return }
+        guard checksAutomatically, phase == .idle, UpdateSchedule.isDue(lastCheck: lastCheck, now: now) else { return }
         begin(.checking) { await $0.check() }
+    }
+
+    /// While turned on, and once after an install on quit failed, even if turned off since: to say why.
+    private var checksAutomatically: Bool {
+        automaticallyChecks || preferences.installFailure != nil
     }
 
     /// True once, on the first launch after an update (not after a fresh install).
@@ -192,10 +199,17 @@ final class UpdateController {
         dismiss()
     }
 
-    /// Quitting installs a background download, unless the user has since turned automatic installs off.
+    /// Quitting installs a download that is ready. Turning automatic installs or checks off drops a background
+    /// download first, but not one asked for with Install and Relaunch.
     func installOnQuit() {
-        guard case .ready(let prepared, _) = phase, automaticallyChecks, automaticallyInstalls, installProblem == nil else { return }
-        try? installer.install(prepared, replacing: appURL)
+        guard case .ready(let prepared, _) = phase, installProblem == nil else { return }
+        do {
+            try installer.install(prepared, replacing: appURL)
+        } catch {
+            // Nothing can be shown while quitting: the next launch checks right away and says why.
+            preferences.installFailure = error.localizedDescription
+            preferences.lastCheck = nil
+        }
     }
 
     #if DEBUG
@@ -231,13 +245,19 @@ final class UpdateController {
             try Task.checkCancellation()
             lastCheck = .now
             preferences.lastCheck = lastCheck
-            // Asking by hand shows a skipped version again.
-            let skipped = isInteractive ? nil : preferences.skippedVersion
+            let installFailure = preferences.installFailure
+            preferences.installFailure = nil
+            // Asking by hand, or having tried to install it, shows a skipped version again.
+            let skipped = isInteractive || installFailure != nil ? nil : preferences.skippedVersion
             guard let update = AvailableUpdate(releases: releases, current: currentVersion, skipping: skipped) else {
                 phase = isInteractive ? .upToDate : .idle
                 return
             }
-            if !isInteractive, automaticallyInstalls, installProblem == nil {
+            if let installFailure {
+                // Installing it on quit failed last time: say why instead of quietly downloading it again.
+                phase = .failed(installFailure, update)
+                presenter.show(self)
+            } else if !isInteractive, automaticallyInstalls, installProblem == nil {
                 await download(update, relaunching: false)
             } else {
                 phase = .available(update)
@@ -260,10 +280,13 @@ final class UpdateController {
                 Task { @MainActor in self.report(fraction, for: update) }
             }
             try Task.checkCancellation()
-            if relaunching {
+            if relaunching, isInteractive {
                 try finish(prepared)
             } else {
                 phase = .ready(prepared, update)
+                readyWasRequested = relaunching
+                // The window was closed while downloading: ask before relaunching rather than quitting unannounced.
+                if relaunching { presenter.show(self) }
             }
         } catch let error where Self.isCancellation(error) {
             // Cancelled from the window: offer it again. A background download just stops.
@@ -300,7 +323,7 @@ final class UpdateController {
     }
 
     private func dropBackgroundUpdate() {
-        if case .ready = phase { phase = .idle }
+        if case .ready = phase, !readyWasRequested { phase = .idle }
     }
 
     private func windowDidClose() {
