@@ -52,7 +52,7 @@
    3. **Verify**: poll the associations until each one reads back, or a 3 s timeout expires. LaunchServices usually needs 0.5–1.5 s to report a change.
    4. **Interactive retry**: for what macOS ignored (typically types another app owns, such as `.doc` for Word), call `NSWorkspace.setDefaultApplication`. macOS may show a confirmation prompt; then verify again.
    5. Return an `AssignmentOutcome` per format: `applied`, `notAccepted(actual)` or `failed(message)`.
-4. **Report**: `ApplyReport` summarizes the outcomes and builds the `inverse` assignments (restore previous apps), which are registered with `UndoManager`. Redo is registered synchronously inside the undo handler, so the stack order stays correct.
+4. **Report & Undo**: `ApplyReport` summarizes the outcomes and derives the undo/redo assignments. `ReversibleChange` (Core, unit-tested) registers them with `UndoManager`; its handler registers the mirrored change before running, so Undo and Redo keep alternating correctly. Applies run one after another (`AppModel.execute` chains onto the previous one), so an Undo pressed mid-apply is queued, not lost.
 5. **Local refresh**: only the statuses of the changed extensions are read again.
 
 ## Localization

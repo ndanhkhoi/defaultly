@@ -9,7 +9,7 @@
 - Depend on the ports (`LaunchServicesClient`, `AppLocating`). System implementations are only created in the composition root (`DefaultlyApp`).
 
 ## Swift
-- Swift 6 language mode, `swift-tools-version: 6.0`. Code must compile with Swift 6.2 (Xcode 26 on CI).
+- Swift 6 language mode, `swift-tools-version: 6.0`. CI builds with the default Xcode 26 on the `macos-26` runner (Swift 6.3 at the time of writing); locally, Command Line Tools with the macOS 26 SDK. Both must stay warning-free.
 - Models are `Sendable` value types. Only `AppModel` and `IconCache` are classes (`@MainActor`).
 - Swift API Design Guidelines naming. File name = main type name (PascalCase).
 - Liquid Glass APIs (`glassEffect`, `.glass`, `.glassProminent`) are only used through the adapters in `Support/Glass.swift`, each with an `#available` fallback.
