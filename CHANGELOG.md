@@ -3,7 +3,7 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
-## Unreleased
+## 1.1.2 - 2026-09-24
 
 - **Fixed:** Defaultly quit on macOS 27 when it found an update, whether you chose **Check for Updates…** or it
   checked by itself. It now shows the update, as it does on earlier versions of macOS.
@@ -12,6 +12,8 @@ come from this file.
 - **Fixed:** on macOS 27, changing a default app could ask for confirmation two or three times for the same format,
   and choosing **Keep** didn't stop the questions for the rest of the change. macOS still asks once for each format
   (this can't be turned off); choosing **Keep** once now skips the remaining formats.
+- On macOS 27, Defaultly 1.1.0 and 1.1.1 quit as soon as they find this update. Download this version from the
+  release page once; later versions install themselves.
 
 ## 1.1.1 - 2026-09-24
 
