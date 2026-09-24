@@ -36,8 +36,12 @@ for an ad-hoc app (reported on macOS 26.2).
 | 2 | [App: update controller, window, settings, menus, What's New](./phase-02-app-updates.md) | Completed |
 | 3 | [Release pipeline: CHANGELOG.md, optional Developer ID + notarization, docs](./phase-03-release-pipeline.md) | Completed |
 
-Review and fixes: [reports/code-review-in-app-updates.md](./reports/code-review-in-app-updates.md). Not released yet:
-`CHANGELOG.md` lists the work under **Unreleased**; renaming it to a version and pushing the tag publishes it.
+Review and fixes: [reports/code-review-in-app-updates.md](./reports/code-review-in-app-updates.md).
+
+## Outcome
+- Merged in [#1](https://github.com/ndanhkhoi/defaultly/pull/1); CI green on `macos-26` (Xcode 26.6, Swift 6.3.3): 90 tests, UI smoke test, 0 warnings.
+- Released [v1.1.0](https://github.com/ndanhkhoi/defaultly/releases/tag/v1.1.0): notes taken from `CHANGELOG.md`, ad hoc signed (no Apple secrets yet, so the Developer ID step was skipped), universal, `CHANGELOG.md` bundled.
+- `make integration-test` installed the published v1.1.0 through the updater into a temporary folder, without a quarantine flag.
 
 ## Acceptance criteria
 1. A build older than the latest release finds it (manually and automatically), shows its notes, and after **Install and Relaunch**
