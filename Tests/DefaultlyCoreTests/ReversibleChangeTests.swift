@@ -5,46 +5,79 @@ import Testing
 @MainActor
 struct ReversibleChangeTests {
     final class Recorder {
-        var calls: [(assignments: [Assignment], isUndo: Bool)] = []
+        var calls: [(assignments: [Assignment], direction: ReversibleChange.Direction)] = []
     }
 
-    let toWord = [Assignment(ext: .ext("docx"), app: .word)]
-    let toLibre = [Assignment(ext: .ext("docx"), app: .libre)]
+    let wordToLibre = AssignmentOutcome(assignment: Assignment(ext: .ext("docx"), app: .libre), previous: .word, result: .applied)
+    var toWord: [Assignment] { [Assignment(ext: .ext("docx"), app: .word)] }
+    var toLibre: [Assignment] { [Assignment(ext: .ext("docx"), app: .libre)] }
 
-    func registered(_ change: ReversibleChange, recorder: Recorder, target: AnyObject) -> UndoManager {
+    func undoManager() -> UndoManager {
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
-        undoManager.beginUndoGrouping()
-        change.register(on: undoManager, target: target) { recorder.calls.append(($0, $1)) }
-        undoManager.endUndoGrouping()
         return undoManager
     }
 
-    @Test func undoAndRedoMirrorEachOther() {
-        let recorder = Recorder()
-        let target = NSObject()
-        let undoManager = registered(ReversibleChange(title: "Set LibreOffice", undo: toWord, redo: toLibre), recorder: recorder, target: target)
-        #expect(undoManager.undoActionName == "Set LibreOffice")
-
-        undoManager.undo()
-        #expect(recorder.calls.map(\.assignments) == [toWord])
-        #expect(recorder.calls.map(\.isUndo) == [true])
-        #expect(undoManager.canRedo)
-
-        undoManager.redo()
-        #expect(recorder.calls.map(\.assignments) == [toWord, toLibre])
-        #expect(recorder.calls.map(\.isUndo) == [true, false])
-        #expect(undoManager.canUndo)
-
-        undoManager.undo()
-        #expect(recorder.calls.last?.assignments == toWord)
+    func register(_ report: Task<ApplyReport, Never>, on undoManager: UndoManager, recorder: Recorder) {
+        undoManager.beginUndoGrouping()
+        ReversibleChange(title: "Set LibreOffice", report: report).register(on: undoManager) { assignments, direction in
+            recorder.calls.append((assignments, direction))
+        }
+        undoManager.endUndoGrouping()
     }
 
-    @Test func nothingToRevertRegistersNothing() {
-        let undoManager = UndoManager()
-        undoManager.groupsByEvent = false
-        ReversibleChange(title: "Nothing", undo: [], redo: []).register(on: undoManager, target: NSObject()) { _, _ in }
-        #expect(!undoManager.canUndo)
-        #expect(undoManager.undoActionName.isEmpty)
+    /// Lets queued main-actor tasks (the undo handlers' work) run.
+    func settle() async {
+        for _ in 0..<20 { await Task.yield() }
+    }
+
+    @Test func undoAndRedoMirrorEachOther() async {
+        let recorder = Recorder()
+        let manager = undoManager()
+        register(Task { ApplyReport(outcomes: [wordToLibre]) }, on: manager, recorder: recorder)
+        await settle()
+        #expect(manager.undoActionName == "Set LibreOffice")
+
+        manager.undo()
+        await settle()
+        #expect(recorder.calls.map(\.assignments) == [toWord])
+        #expect(recorder.calls.map(\.direction) == [.undo])
+        #expect(manager.canRedo)
+
+        manager.redo()
+        await settle()
+        #expect(recorder.calls.map(\.assignments) == [toWord, toLibre])
+        #expect(recorder.calls.map(\.direction) == [.undo, .redo])
+        #expect(manager.canUndo)
+    }
+
+    @Test func undoPressedDuringTheApplyUndoesThatApply() async {
+        let recorder = Recorder()
+        let manager = undoManager()
+        let (gate, open) = AsyncStream<Void>.makeStream()
+        let outcome = wordToLibre
+        let report = Task {
+            for await _ in gate { break }
+            return ApplyReport(outcomes: [outcome])
+        }
+        register(report, on: manager, recorder: recorder)
+        #expect(manager.canUndo)
+
+        manager.undo()
+        await settle()
+        #expect(recorder.calls.isEmpty)
+
+        open.yield()
+        await report.value
+        await settle()
+        #expect(recorder.calls.map(\.assignments) == [toWord])
+    }
+
+    @Test func nothingToRevertLeavesNoUndoEntry() async {
+        let manager = undoManager()
+        let noPrevious = AssignmentOutcome(assignment: Assignment(ext: .ext("docx"), app: .libre), previous: nil, result: .applied)
+        register(Task { ApplyReport(outcomes: [noPrevious]) }, on: manager, recorder: Recorder())
+        await settle()
+        #expect(!manager.canUndo)
     }
 }

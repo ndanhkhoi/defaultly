@@ -21,11 +21,15 @@ public protocol LaunchServicesClient: Sendable {
 
 public enum LaunchServicesError: LocalizedError, Equatable {
     case unknownType(FileExtension)
+    /// The user declined the system prompt that confirms the change.
+    case declined
 
     public var errorDescription: String? {
         switch self {
         case .unknownType(let ext):
             String(localized: "macOS has no content type for \(ext.description).", bundle: .main)
+        case .declined:
+            String(localized: "The change wasn't allowed.", bundle: .main)
         }
     }
 }
@@ -46,7 +50,8 @@ public struct SystemLaunchServices: LaunchServicesClient {
             .filter { seen.insert($0.standardizedFileURL.path).inserted }
     }
 
-    /// Sets the preferred content type (the one Finder uses) and, best effort, every alternate one.
+    /// Instant writes cover every content type of the extension. The interactive API sets only the
+    /// preferred one (the one Finder uses), because each call may ask the user to confirm.
     public func setDefaultApplication(_ app: AppInfo, for ext: FileExtension, using method: AssignmentMethod) async throws {
         let types = ext.contentTypes
         guard let preferred = types.first else { throw LaunchServicesError.unknownType(ext) }
@@ -59,9 +64,10 @@ public struct SystemLaunchServices: LaunchServicesClient {
             }
             return
         }
-        try await NSWorkspace.shared.setDefaultApplication(at: app.url, toOpen: preferred)
-        for alternate in types.dropFirst() {
-            try? await NSWorkspace.shared.setDefaultApplication(at: app.url, toOpen: alternate)
+        do {
+            try await NSWorkspace.shared.setDefaultApplication(at: app.url, toOpen: preferred)
+        } catch let error as NSError where error.isUserCancellation {
+            throw LaunchServicesError.declined
         }
     }
 
@@ -77,4 +83,13 @@ public struct SystemLaunchServices: LaunchServicesClient {
         guard let symbol = dlsym(defaultHandle, "LSSetDefaultRoleHandlerForContentType") else { return nil }
         return unsafeBitCast(symbol, to: SetRoleHandler.self)
     }()
+}
+
+private extension NSError {
+    /// NSWorkspace wraps a declined confirmation as a Cocoa error around `userCanceledErr` (-128).
+    var isUserCancellation: Bool {
+        let underlying = userInfo[NSUnderlyingErrorKey] as? NSError
+        return (domain == NSCocoaErrorDomain && code == NSUserCancelledError)
+            || (underlying?.domain == NSOSStatusErrorDomain && underlying?.code == -128)
+    }
 }

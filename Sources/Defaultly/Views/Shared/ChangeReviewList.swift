@@ -101,6 +101,8 @@ struct ApplyBar: View {
     let items: [PlanItem]
     /// Changes outside `items` that Apply also makes, such as custom formats a backup re-creates.
     var otherChanges = 0
+    /// Return applies only in sheets; in the main window it would fire while browsing lists.
+    var isDefaultAction = false
     var cancel: (() -> Void)?
     let apply: () -> Void
 
@@ -125,7 +127,7 @@ struct ApplyBar: View {
             }
             .glassButton(prominent: true)
             .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
+            .keyboardShortcut(isDefaultAction ? .defaultAction : nil)
             .disabled(included == 0 || model.isApplying)
         }
         .padding(.horizontal, 16)

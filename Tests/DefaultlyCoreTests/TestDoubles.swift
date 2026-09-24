@@ -34,6 +34,7 @@ struct FakeAppLocator: AppLocating {
 /// In-memory LaunchServices.
 /// `ownedByOthers`: instant writes are ignored, interactive ones work (like types another app owns).
 /// `rejected`: every write is ignored. `failing`: every write throws.
+/// `declining`: the interactive write throws as if the user declined the system prompt.
 final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
     struct Failure: LocalizedError { var errorDescription: String? { "boom" } }
 
@@ -44,19 +45,22 @@ final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
     private let ownedByOthers: Set<FileExtension>
     private let rejected: Set<FileExtension>
     private let failing: Set<FileExtension>
+    private let declining: Set<FileExtension>
 
     init(
         defaults: [FileExtension: URL] = [:],
         candidates: [FileExtension: [URL]] = [:],
         ownedByOthers: Set<FileExtension> = [],
         rejected: Set<FileExtension> = [],
-        failing: Set<FileExtension> = []
+        failing: Set<FileExtension> = [],
+        declining: Set<FileExtension> = []
     ) {
         self.defaults = defaults
         self.candidates = candidates
         self.ownedByOthers = ownedByOthers
         self.rejected = rejected
         self.failing = failing
+        self.declining = declining
     }
 
     /// Which methods were used for an extension, in order.
@@ -75,6 +79,7 @@ final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
     func setDefaultApplication(_ app: AppInfo, for ext: FileExtension, using method: AssignmentMethod) async throws {
         lock.withLock { calls.append((ext, method)) }
         if failing.contains(ext) { throw Failure() }
+        if method == .interactive, declining.contains(ext) { throw LaunchServicesError.declined }
         if rejected.contains(ext) || (method == .instant && ownedByOthers.contains(ext)) { return }
         lock.withLock { defaults[ext] = app.url }
     }

@@ -1,39 +1,60 @@
 import Foundation
 
-/// A batch of changes and its inverse, registered with an `UndoManager` so Undo and Redo mirror each other.
+/// A batch of changes registered with an `UndoManager` as soon as it starts, so ⌘Z pressed while
+/// it is still applying undoes this batch rather than the one before. Undo and Redo mirror each other.
 public struct ReversibleChange: Sendable {
+    public enum Direction: Sendable {
+        case undo, redo
+
+        var flipped: Direction { self == .undo ? .redo : .undo }
+    }
+
     public let title: String
-    public let undo: [Assignment]
-    public let redo: [Assignment]
+    private let report: Task<ApplyReport, Never>
 
-    public init(title: String, report: ApplyReport) {
-        self.init(title: title, undo: report.undoAssignments, redo: report.redoAssignments)
-    }
-
-    init(title: String, undo: [Assignment], redo: [Assignment]) {
+    /// `report` is the apply in progress; its outcome decides what Undo and Redo reapply.
+    public init(title: String, report: Task<ApplyReport, Never>) {
         self.title = title
-        self.undo = undo
-        self.redo = redo
+        self.report = report
     }
 
-    /// Undoing calls `perform(undo, true)`. The mirrored change is registered first, while the
-    /// undo manager is still undoing, so it lands on the Redo stack (and vice versa for Redo).
+    /// Undoing calls `perform(report.undoAssignments, .undo)` once the report is ready; the mirrored
+    /// action is registered first, while the manager is still undoing, so it lands on the Redo stack.
+    /// If the finished batch has nothing to revert, the entry is removed again.
     @MainActor
     public func register(
         on undoManager: UndoManager,
-        target: AnyObject,
-        perform: @escaping @MainActor (_ assignments: [Assignment], _ isUndo: Bool) -> Void
+        perform: @escaping @MainActor (_ assignments: [Assignment], _ direction: Direction) async -> Void
     ) {
-        guard !undo.isEmpty else { return }
-        undoManager.registerUndo(withTarget: target) { target in
-            let isUndo = undoManager.isUndoing
-            mirrored.register(on: undoManager, target: target, perform: perform)
-            perform(undo, isUndo)
+        let token = Token()
+        register(.undo, on: undoManager, token: token, perform: perform)
+        let report = report
+        Task { @MainActor in
+            if await report.value.undoAssignments.isEmpty {
+                undoManager.removeAllActions(withTarget: token)
+            }
+        }
+    }
+
+    @MainActor
+    private func register(
+        _ direction: Direction,
+        on undoManager: UndoManager,
+        token: Token,
+        perform: @escaping @MainActor ([Assignment], Direction) async -> Void
+    ) {
+        // UndoManager doesn't retain targets; the handler (which it does keep) holds the token alive.
+        undoManager.registerUndo(withTarget: token) { [token] _ in
+            register(direction.flipped, on: undoManager, token: token, perform: perform)
+            let report = report
+            Task { @MainActor in
+                let outcome = await report.value
+                await perform(direction == .undo ? outcome.undoAssignments : outcome.redoAssignments, direction)
+            }
         }
         undoManager.setActionName(title)
     }
 
-    private var mirrored: ReversibleChange {
-        ReversibleChange(title: title, undo: redo, redo: undo)
-    }
+    /// Identifies this change's entries on the undo stack.
+    private final class Token {}
 }

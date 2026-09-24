@@ -48,10 +48,13 @@ struct IssuesSheet: View {
         .frame(width: 560, height: 440)
     }
 
+    /// Closes the sheet first, so an alert about a wrong pick appears in the main window, in context.
     private func chooseAnotherApp(for ext: FileExtension) {
-        guard let app = AppChoice.pickApp(model: model, navigation: navigation) else { return }
-        Task { await model.apply([Assignment(ext: ext, app: app)], named: AppModel.title(setting: app, count: 1), undoManager: undoManager) }
         dismiss()
+        Task { @MainActor in
+            guard let app = AppChoice.pickApp(model: model, navigation: navigation) else { return }
+            await model.apply([Assignment(ext: ext, app: app)], named: AppModel.title(setting: app, count: 1), undoManager: undoManager)
+        }
     }
 }
 

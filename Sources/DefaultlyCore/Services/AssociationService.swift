@@ -55,8 +55,14 @@ public struct AssociationService: Sendable {
 
         var unconfirmed = await awaitConfirmation(of: assignments.filter { failures[$0.ext] == nil })
         for assignment in unconfirmed {
-            // Declining the macOS prompt also lands here; the outcome then reports the app macOS kept.
-            try? await launchServices.setDefaultApplication(assignment.app, for: assignment.ext, using: .interactive)
+            do {
+                try await launchServices.setDefaultApplication(assignment.app, for: assignment.ext, using: .interactive)
+            } catch LaunchServicesError.declined {
+                // One "Don't Allow" answers for the whole batch: don't keep prompting.
+                break
+            } catch {
+                // The outcome reports the app macOS kept.
+            }
         }
         unconfirmed = await awaitConfirmation(of: unconfirmed)
         let rejected = Set(unconfirmed.map(\.ext))

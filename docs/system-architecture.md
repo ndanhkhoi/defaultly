@@ -50,10 +50,11 @@
    1. Record the previous app of every format (for Undo).
    2. **Instant write** for every assignment and every UTI of its extension (`LSSetDefaultRoleHandlerForContentType`, looked up at runtime because it is deprecated). It takes milliseconds, where `NSWorkspace.setDefaultApplication` takes about 2 s per call and serializes.
    3. **Verify**: poll the associations until each one reads back, or a 3 s timeout expires. LaunchServices usually needs 0.5–1.5 s to report a change.
-   4. **Interactive retry**: for what macOS ignored (typically types another app owns, such as `.doc` for Word), call `NSWorkspace.setDefaultApplication`. macOS may show a confirmation prompt; then verify again.
+   4. **Interactive retry**: for what macOS ignored (typically types another app owns, such as `.doc` for Word), call `NSWorkspace.setDefaultApplication` for the preferred UTI only. macOS may show a confirmation prompt; if the user declines once, the rest of the batch isn't asked again. Then verify again.
    5. Return an `AssignmentOutcome` per format: `applied`, `notAccepted(actual)` or `failed(message)`.
-4. **Report & Undo**: `ApplyReport` summarizes the outcomes and derives the undo/redo assignments. `ReversibleChange` (Core, unit-tested) registers them with `UndoManager`; its handler registers the mirrored change before running, so Undo and Redo keep alternating correctly. Applies run one after another (`AppModel.execute` chains onto the previous one), so an Undo pressed mid-apply is queued, not lost.
-5. **Local refresh**: only the statuses of the changed extensions are read again.
+4. **Report & Undo**: `ApplyReport` summarizes the outcomes and derives the undo/redo assignments. `ReversibleChange` (Core, unit-tested) is registered with `UndoManager` as soon as the apply is queued, holding the apply's task: ⌘Z during an apply undoes that apply once it finishes. Its handler registers the mirrored change first, so Undo and Redo keep alternating, and the entry is removed if the batch turns out to have nothing to revert.
+5. **One queue**: loads, refreshes and applies run through a single serial queue in `AppModel`, so a Refresh can never overwrite newer results and every caller of the first load waits for the same load.
+6. **Local refresh**: only the statuses of the changed extensions are read again.
 
 ## Localization
 

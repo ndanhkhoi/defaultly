@@ -45,8 +45,10 @@ final class AppModel {
     /// Bumped whenever associations change, so dependent views can recompute.
     private(set) var revision = 0
     var activity: Activity = .idle
-    /// The latest apply; each new one waits for it, so Undo pressed mid-apply is queued, not lost.
-    private var lastApply: Task<ApplyReport, Never>?
+    /// Loads, refreshes and applies run one at a time, in order: a Refresh can't overwrite newer
+    /// results, and an Undo pressed mid-apply runs after that apply.
+    private var queueTail: Task<Void, Never>?
+    private var initialLoad: Task<Void, Never>?
 
     init(service: AssociationService, locator: any AppLocating, store: CustomFormatStore) {
         self.service = service
@@ -63,13 +65,27 @@ final class AppModel {
 
     // MARK: - Loading
 
+    /// Every caller waits for the same first load.
     func loadIfNeeded() async {
-        guard !hasLoaded else { return }
-        await reload()
+        if initialLoad == nil { initialLoad = enqueue { await self.load() } }
+        await initialLoad?.value
     }
 
     func reload() async {
-        guard !isLoading, !isApplying else { return }
+        await enqueue { await self.load() }.value
+    }
+
+    private func enqueue<Result: Sendable>(_ work: @escaping @MainActor () async -> Result) -> Task<Result, Never> {
+        let previous = queueTail
+        let task = Task { @MainActor in
+            await previous?.value
+            return await work()
+        }
+        queueTail = Task { _ = await task.value }
+        return task
+    }
+
+    private func load() async {
         isLoading = true
         let extensions = library.allExtensions
         let service = service
@@ -90,6 +106,11 @@ final class AppModel {
     }
 
     private func refresh(_ extensions: [FileExtension]) async {
+        await enqueue { await self.readStatuses(extensions) }.value
+    }
+
+    /// Not queued: call only from work already running on the queue.
+    private func readStatuses(_ extensions: [FileExtension]) async {
         guard !extensions.isEmpty else { return }
         let service = service
         let fresh = await Task.detached { service.statuses(for: extensions) }.value
@@ -175,15 +196,18 @@ final class AppModel {
         String(localized: "Set \(app.name) for \(count) formats")
     }
 
-    /// Applies assignments with verification and registers them for Undo/Redo.
+    /// Applies assignments with verification. Undo is registered right away, so ⌘Z during the
+    /// apply undoes this change once it has finished.
     func apply(_ assignments: [Assignment], named title: String, undoManager: UndoManager?) async {
-        guard let report = await execute(assignments, title: title, offersUndo: undoManager != nil),
-              let undoManager
-        else { return }
-        ReversibleChange(title: title, report: report).register(on: undoManager, target: self) { [weak self] assignments, isUndo in
-            let actionTitle = isUndo ? String(localized: "Undo \(title)") : String(localized: "Redo \(title)")
-            Task { await self?.execute(assignments, title: actionTitle, offersUndo: false) }
+        guard !assignments.isEmpty else { return }
+        let applying = enqueue { await self.run(assignments, title: title, offersUndo: undoManager != nil) }
+        if let undoManager {
+            ReversibleChange(title: title, report: applying).register(on: undoManager) { [weak self] assignments, direction in
+                let actionTitle = direction == .undo ? String(localized: "Undo \(title)") : String(localized: "Redo \(title)")
+                await self?.execute(assignments, title: actionTitle)
+            }
         }
+        _ = await applying.value
     }
 
     /// Applies the included items of a reviewed plan, adding any new custom formats first.
@@ -200,17 +224,10 @@ final class AppModel {
         await apply(summary.retryable, named: summary.title, undoManager: undoManager)
     }
 
-    /// Runs after any apply already in progress.
-    @discardableResult
-    private func execute(_ assignments: [Assignment], title: String, offersUndo: Bool) async -> ApplyReport? {
-        guard !assignments.isEmpty else { return nil }
-        let previous = lastApply
-        let current = Task {
-            _ = await previous?.value
-            return await run(assignments, title: title, offersUndo: offersUndo)
-        }
-        lastApply = current
-        return await current.value
+    /// Undo and Redo: queued and verified; `ReversibleChange` already keeps them on the undo stack.
+    private func execute(_ assignments: [Assignment], title: String) async {
+        guard !assignments.isEmpty else { return }
+        _ = await enqueue { await self.run(assignments, title: title, offersUndo: false) }.value
     }
 
     private func run(_ assignments: [Assignment], title: String, offersUndo: Bool) async -> ApplyReport {
@@ -218,7 +235,7 @@ final class AppModel {
         activity = .applying(title: title, count: assignments.count)
         let report = await service.apply(assignments)
         inFlight = []
-        await refresh(assignments.map(\.ext))
+        await readStatuses(assignments.map(\.ext))
 
         let summary = ApplySummary(
             title: title,

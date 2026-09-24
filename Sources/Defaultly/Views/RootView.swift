@@ -52,7 +52,8 @@ struct RootView: View {
             presenting: navigation.alert
         ) { alert in
             if let actionTitle = alert.actionTitle, let action = alert.action {
-                Button(actionTitle) { action() }
+                // After the alert has closed, so the action can present panels or another alert.
+                Button(actionTitle) { Task { @MainActor in action() } }
             }
             Button("OK", role: .cancel) {}
         } message: { alert in

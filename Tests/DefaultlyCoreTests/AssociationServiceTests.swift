@@ -44,6 +44,18 @@ struct AssociationServiceTests {
         #expect(report.outcomes.map(\.result) == [.notAccepted(actual: .word)])
     }
 
+    @Test func stopsAskingOnceTheUserDeclines() async {
+        let doc = FileExtension.ext("doc")
+        let launchServices = FakeLaunchServices(
+            defaults: [docx: AppInfo.word.url, doc: AppInfo.word.url],
+            ownedByOthers: [docx, doc],
+            declining: [docx]
+        )
+        let report = await service(launchServices).apply([Assignment(ext: docx, app: .libre), Assignment(ext: doc, app: .libre)])
+        #expect(report.outcomes.map(\.result) == [.notAccepted(actual: .word), .notAccepted(actual: .word)])
+        #expect(launchServices.methods(for: doc) == [.instant])
+    }
+
     @Test func reportsFailuresWithoutRetryingThem() async {
         let odt = FileExtension.ext("odt")
         let launchServices = FakeLaunchServices(failing: [docx])

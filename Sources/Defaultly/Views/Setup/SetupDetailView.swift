@@ -8,7 +8,7 @@ struct SetupDetailView: View {
 
     var body: some View {
         switch setup {
-        case .category(let id):
+        case .category(let id) where !(model.library.category(id: id)?.formats.isEmpty ?? true):
             if let category = model.library.category(id: id) {
                 AssignmentPanel(
                     title: category.displayName,
@@ -21,7 +21,8 @@ struct SetupDetailView: View {
             if let suite = model.suites.first(where: { $0.id == id }) {
                 SuiteReviewView(suite: suite).id(id)
             }
-        case nil:
+        case .category, nil:
+            // No setup chosen, or a category that became empty (e.g. its custom formats were removed).
             ContentUnavailableView(
                 "Choose a Setup",
                 systemImage: "wand.and.stars",

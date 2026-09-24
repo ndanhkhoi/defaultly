@@ -2,14 +2,17 @@ import DefaultlyCore
 import SwiftUI
 
 /// "Open With" for one or more formats: ranked supporting apps, then any other app.
+/// Toolbar items and menus are hosted by AppKit, so dependencies are passed in, not read from the
+/// environment (see `FormatRow`).
 struct AppChoiceMenu: View {
-    @Environment(AppModel.self) private var model
-    @Environment(Navigation.self) private var navigation
     let formats: [FileFormat]
+    let model: AppModel
+    let navigation: Navigation
+    let undoManager: UndoManager?
 
     var body: some View {
         Menu {
-            AppChoiceMenuItems(formats: formats, model: model, navigation: navigation)
+            AppChoiceMenuItems(formats: formats, model: model, navigation: navigation, undoManager: undoManager)
         } label: {
             Label("Open With", systemImage: "arrow.up.forward.app")
         }
@@ -18,13 +21,11 @@ struct AppChoiceMenu: View {
     }
 }
 
-/// Menu content is hosted by AppKit menus, so it gets the model explicitly rather than
-/// through the environment (see `FormatRow`).
 struct AppChoiceMenuItems: View {
-    @Environment(\.undoManager) private var undoManager
     let formats: [FileFormat]
     let model: AppModel
     let navigation: Navigation
+    let undoManager: UndoManager?
 
     private let visibleCount = 8
 

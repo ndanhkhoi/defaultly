@@ -18,6 +18,7 @@ struct FormatRow: Identifiable {
 struct FormatTableView: View {
     @Environment(AppModel.self) private var model
     @Environment(Navigation.self) private var navigation
+    @Environment(\.undoManager) private var undoManager
     let scope: FormatScope
 
     @State private var sortOrder = [KeyPathComparator(\FormatRow.ext)]
@@ -50,7 +51,12 @@ struct FormatTableView: View {
                     .width(min: 140, ideal: 200)
                 }
                 .contextMenu(forSelectionType: FileExtension.self) { selection in
-                    FormatContextMenu(formats: formats.filter { selection.contains($0.ext) }, model: model, navigation: navigation)
+                    FormatContextMenu(
+                        formats: formats.filter { selection.contains($0.ext) },
+                        model: model,
+                        navigation: navigation,
+                        undoManager: undoManager
+                    )
                 }
             }
         }
@@ -58,7 +64,12 @@ struct FormatTableView: View {
         .navigationSubtitle(Text("\(formats.count) formats"))
         .toolbar {
             ToolbarItemGroup {
-                AppChoiceMenu(formats: formats.filter { navigation.formatSelection.contains($0.ext) })
+                AppChoiceMenu(
+                    formats: formats.filter { navigation.formatSelection.contains($0.ext) },
+                    model: model,
+                    navigation: navigation,
+                    undoManager: undoManager
+                )
                 Button {
                     navigation.sheet = .newCustomFormats(prefill: "")
                 } label: {
@@ -162,15 +173,15 @@ private struct DefaultAppCell: View {
 /// Row actions; the same "Open With" items as the toolbar. Gets the model explicitly because
 /// AppKit hosts context menus outside the view hierarchy (see `FormatRow`).
 private struct FormatContextMenu: View {
-    @Environment(\.undoManager) private var undoManager
     let formats: [FileFormat]
     let model: AppModel
     let navigation: Navigation
+    let undoManager: UndoManager?
 
     var body: some View {
         if !formats.isEmpty {
             Menu("Open With") {
-                AppChoiceMenuItems(formats: formats, model: model, navigation: navigation)
+                AppChoiceMenuItems(formats: formats, model: model, navigation: navigation, undoManager: undoManager)
             }
             Divider()
             if formats.count == 1, let format = formats.first {

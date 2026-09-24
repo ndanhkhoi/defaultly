@@ -5,7 +5,8 @@ import SwiftUI
 
 /// Debug-only UI smoke test (`scripts/smoke-test.sh`): drives every screen, selection, sheet and
 /// toast, then exits 0. SwiftUI crashes such as a row reading a missing environment object only
-/// show up in a running app, so unit tests can't catch them. It never changes file associations.
+/// show up in a running app, so unit tests can't catch them. It never changes file associations;
+/// it adds and removes two made-up custom formats in the debug build's own defaults.
 @MainActor
 enum SmokeTest {
     static let isRequested = ProcessInfo.processInfo.environment["DEFAULTLY_SMOKE_TEST"] != nil
@@ -17,6 +18,7 @@ enum SmokeTest {
             log("round \(round)")
             await visitScreens(model: model, navigation: navigation)
         }
+        await exerciseCustomFormats(model: model, navigation: navigation)
         await presentSheetsAndToasts(model: model, navigation: navigation)
         log("smoke test passed")
         exit(0)
@@ -31,11 +33,15 @@ enum SmokeTest {
             await step { navigation.setupSelection = .suite(suite.id) }
         }
         await step { navigation.sidebar = .allFormats }
-        for category in model.library.categories {
+        for (index, category) in model.library.categories.enumerated() {
+            // Switch while rows are still selected: removed rows keep being updated (the v1.0.0 crash).
             await step { navigation.sidebar = .category(category.id) }
             await step { navigation.formatSelection = [category.formats[0].ext] }
             await step { navigation.formatSelection = Set(category.formats.prefix(5).map(\.ext)) }
-            await step { navigation.formatSelection = [] }
+            if index.isMultiple(of: 3) { await step { navigation.formatSelection = [] } }
+        }
+        if let format = model.library.format(for: FileExtension("png")!) {
+            await step { navigation.reveal(format) }
         }
         await step { navigation.sidebar = .custom }
         await step { navigation.searchText = "doc" }
@@ -45,6 +51,21 @@ enum SmokeTest {
         for app in model.installedApps.prefix(20) {
             await step { navigation.appSelection = app.bundleID }
         }
+    }
+
+    private static func exerciseCustomFormats(model: AppModel, navigation: Navigation) async {
+        let made = ["zzsmokea", "zzsmokeb"].compactMap(FileExtension.init)
+        await model.addCustomFormats(made.map { CustomFormat(ext: $0, categoryID: "code") })
+        await step { navigation.sidebar = .custom }
+        await step { navigation.formatSelection = Set(made) }
+        await step { navigation.formatSelection = [made[0]] }
+        await step { navigation.sidebar = .quickSetup }
+        await step { navigation.setupSelection = .category(FormatLibrary.customCategoryID) }
+        await step { navigation.sidebar = .custom }
+        await step { navigation.formatSelection = [made[0]] }
+        // Remove while selected and while its setup is the last one picked.
+        await step { model.removeCustomFormats(Set(made), undoManager: nil) }
+        await step { navigation.sidebar = .quickSetup }
     }
 
     private static func presentSheetsAndToasts(model: AppModel, navigation: Navigation) async {
