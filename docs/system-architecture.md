@@ -96,6 +96,7 @@
 - SwiftPM targets: `DefaultlyCore` (library), `Defaultly` (executable), `DefaultlyCoreTests` (Swift Testing).
 - `scripts/build-app.sh`: build per arch (copying each binary aside, since newer SwiftPM reuses one output folder) → `lipo` → assemble `Defaultly.app` (Info.plist template, `AppIcon.icns`, `CHANGELOG.md`, `*.lproj`) → `codesign --sign -` (ad-hoc), or with `SIGN_IDENTITY` a Developer ID signature with the hardened runtime and a timestamp.
 - `scripts/sdk-root.sh`: with Command Line Tools only, selects the macOS 26 SDK, because newer SDKs make `@State` a macro whose plugin ships with Xcode. `make test` then passes the Swift Testing plugin path explicitly.
+- `scripts/swift-flags.sh`: with that SDK, adds `-isysroot` for the linking clang. SwiftPM links without `SDKROOT` in the environment, so clang would record the deployment target (14.0) as the SDK version, and SwiftUI would keep its macOS 14 behavior in local builds (no Liquid Glass, other layout), unlike the release built with Xcode.
 - `scripts/package-release.sh`: `.zip` (ditto) + `.dmg` (hdiutil, with an Applications symlink) + `SHA256SUMS.txt`. With `NOTARIZE=1`: notarize and staple the app first (`scripts/notarize.sh`), then sign, notarize and staple the dmg.
 - `scripts/release-notes.sh <version> [previous-tag]`: the version's `CHANGELOG.md` section + install notes (`.github/install-notes*.md`) + compare link; fails without a section.
 - CI `ci.yml` (push/PR): lint strings, build, test, universal app bundle, upload artifact.

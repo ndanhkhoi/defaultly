@@ -5,8 +5,10 @@ cd "$(dirname "$0")/.."
 
 sdk="$(scripts/sdk-root.sh)"
 if [[ -n "$sdk" ]]; then export SDKROOT="$sdk"; fi
+swift_flags="$(scripts/swift-flags.sh)"
 
-swift build --product Defaultly
+# shellcheck disable=SC2086 # the flags are separate words; the SDK path has no spaces
+swift build $swift_flags --product Defaultly
 binary="$(swift build --show-bin-path)/Defaultly"
 
 DEFAULTLY_SMOKE_TEST=1 "$binary" &
