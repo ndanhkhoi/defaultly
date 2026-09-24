@@ -3,6 +3,11 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
+## Unreleased
+
+- **Fixed:** Defaultly quit on macOS 27 when it found an update, whether you chose **Check for Updates…** or it
+  checked by itself. It now shows the update, as it does on earlier versions of macOS.
+
 ## 1.1.1 - 2026-09-24
 
 - **Fixed:** clicking **More Apps**, **Technical Details** or the skipped formats of a backup now opens them. Before,
