@@ -39,6 +39,7 @@ See section 6 of `docs/project-overview-pdr.md`.
 - CI green on `main` (macos-26, Xcode 26.6, Swift 6.3.3): lint, 47 unit tests, universal build, 0 warnings.
 - Release [v1.0.0](https://github.com/ndanhkhoi/defaultly/releases/tag/v1.0.0): `Defaultly-1.0.0.dmg`, `.zip`, `SHA256SUMS.txt`; binary `x86_64 arm64`, ad-hoc signed, verified by download.
 - Review outcomes: [reports/code-review-v1-release.md](./reports/code-review-v1-release.md).
+- Release [v1.0.1](https://github.com/ndanhkhoi/defaultly/releases/tag/v1.0.1): fixes the crash when switching categories, makes Undo/refresh/prompts safe under concurrency, and gates CI and releases on a UI smoke test. Details: [reports/crash-fix-v1.0.1.md](./reports/crash-fix-v1.0.1.md).
 
 ## Risks
 | Risk | Mitigation |
