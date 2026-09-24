@@ -3,7 +3,7 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
-## Unreleased
+## 1.1.3 - 2026-09-24
 
 - **Fixed:** closing the Software Update window after choosing **Install and Relaunch** made Defaultly quit and
   reopen by itself as soon as the download finished. It now shows the window again, so you choose **Relaunch Now** or
