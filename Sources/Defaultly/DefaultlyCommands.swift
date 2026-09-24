@@ -10,17 +10,16 @@ struct DefaultlyCommands: Commands {
                 .keyboardShortcut("n")
         }
         CommandGroup(replacing: .importExport) {
+            // Availability is checked inside BackupFlow: menu commands shouldn't depend on
+            // observation of model state to become enabled.
             Button("Export Backup…") { BackupFlow(model: model, navigation: navigation).export() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(!model.hasLoaded)
             Button("Restore from Backup…") { Task { await BackupFlow(model: model, navigation: navigation).restore() } }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
-                .disabled(!model.hasLoaded || model.isApplying)
         }
         CommandGroup(after: .sidebar) {
             Button("Refresh") { Task { await model.reload() } }
                 .keyboardShortcut("r")
-                .disabled(model.isLoading || model.isApplying)
             Divider()
         }
         CommandGroup(replacing: .help) {

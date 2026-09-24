@@ -37,7 +37,8 @@ private struct SuiteReviewView: View {
     @Environment(\.undoManager) private var undoManager
     let suite: ResolvedSuite
 
-    @State private var items: [PlanItem] = []
+    /// nil until the first plan is computed, so the screen never flashes "nothing to change".
+    @State private var items: [PlanItem]?
 
     var body: some View {
         Form {
@@ -55,24 +56,29 @@ private struct SuiteReviewView: View {
                 }
                 .padding(.vertical, 2)
             }
-            if items.isEmpty {
-                Section {
-                    Label("\(suite.suite.name) already opens all of these formats.", systemImage: "checkmark.circle")
+            if let items = Binding($items) {
+                if items.wrappedValue.isEmpty {
+                    Section {
+                        Label("\(suite.suite.name) already opens all of these formats.", systemImage: "checkmark.circle")
+                    }
+                } else {
+                    ChangeReviewList(items: items, showsTarget: suite.apps.count > 1)
                 }
             } else {
-                ChangeReviewList(items: $items, showsTarget: suite.apps.count > 1)
+                Section { ProgressView().controlSize(.small) }
             }
         }
         .formStyle(.grouped)
         .bottomActionBar {
-            if !items.isEmpty {
+            if let items, !items.isEmpty {
                 ApplyBar(items: items) {
-                    let plan = items
-                    Task { await model.apply(plan, named: String(localized: "Use \(suite.suite.name)"), undoManager: undoManager) }
+                    Task { await model.apply(items, named: String(localized: "Use \(suite.suite.name)"), undoManager: undoManager) }
                 }
             }
         }
-        .task(id: model.revision) { items = plan() }
+        .task(id: model.revision) {
+            items = PlanBuilder.keepingChoices(of: items ?? [], in: plan())
+        }
     }
 
     private func plan() -> [PlanItem] {

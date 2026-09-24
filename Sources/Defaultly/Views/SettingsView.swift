@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var language = LanguagePreference.current
-    private let launchLanguage = LanguagePreference.current
 
     var body: some View {
         Form {
@@ -14,7 +13,7 @@ struct SettingsView: View {
             }
             .onChange(of: language) { LanguagePreference.set(language) }
 
-            if language != launchLanguage {
+            if language != LanguagePreference.atLaunch {
                 HStack {
                     Label("Relaunch Defaultly to use the new language.", systemImage: "arrow.clockwise.circle")
                         .foregroundStyle(.secondary)

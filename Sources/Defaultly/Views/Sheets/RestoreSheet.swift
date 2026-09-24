@@ -45,7 +45,7 @@ struct RestoreSheet: View {
             }
             .formStyle(.grouped)
 
-            ApplyBar(items: items, cancel: { dismiss() }) {
+            ApplyBar(items: items, otherChanges: preview.newCustomFormats.count, cancel: { dismiss() }) {
                 let plan = items
                 Task {
                     await model.restore(preview, items: plan, undoManager: undoManager)

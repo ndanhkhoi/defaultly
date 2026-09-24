@@ -89,7 +89,7 @@ private struct AppDetailContent: View {
             }
         }
         .task(id: model.revision) {
-            suggestions = await model.suggestions(for: app)
+            suggestions = PlanBuilder.keepingChoices(of: suggestions, in: await model.suggestions(for: app))
             isLoading = false
         }
     }

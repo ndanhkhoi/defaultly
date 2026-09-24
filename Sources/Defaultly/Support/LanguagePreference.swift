@@ -1,17 +1,18 @@
 import AppKit
 import SwiftUI
 
-enum AppLanguage: String, CaseIterable, Identifiable {
+enum AppLanguage: String {
     case system
     case english = "en"
     case vietnamese = "vi"
-
-    var id: String { rawValue }
 }
 
 /// The app's own language override, which macOS reads from `AppleLanguages` at launch.
 enum LanguagePreference {
     private static let key = "AppleLanguages"
+
+    /// The choice the running app started with; later changes only apply after a relaunch.
+    static let atLaunch = current
 
     static var current: AppLanguage {
         guard let bundleID = Bundle.main.bundleIdentifier,
@@ -38,7 +39,9 @@ enum LanguagePreference {
     static func relaunch() {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
+            // Keep this copy running if the new one couldn't start.
+            guard error == nil else { return }
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
     }

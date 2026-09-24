@@ -14,8 +14,6 @@ struct AssignmentPanel: View {
     @State private var chosenApp: AppInfo?
     @State private var items: [PlanItem] = []
 
-    private let visibleApps = 4
-
     var body: some View {
         Form {
             Section {
@@ -48,16 +46,7 @@ struct AssignmentPanel: View {
                 Text("No installed app says it supports these formats. You can still choose any app.")
                     .foregroundStyle(.secondary)
             }
-            ForEach(ranked.prefix(visibleApps)) { entry in
-                suggestionRow(entry)
-            }
-            if ranked.count > visibleApps {
-                DisclosureGroup("\(ranked.count - visibleApps) More Apps") {
-                    ForEach(ranked.dropFirst(visibleApps)) { entry in
-                        suggestionRow(entry)
-                    }
-                }
-            }
+            CappedAppList(items: ranked) { suggestionRow($0) }
             Button("Choose Another App…") {
                 if let app = AppChoice.pickApp(model: model, navigation: navigation) { choose(app) }
             }

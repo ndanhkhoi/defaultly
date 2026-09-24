@@ -32,6 +32,7 @@ struct IssuesSheet: View {
                     Task { await model.retry(summary, undoManager: undoManager) }
                     dismiss()
                 }
+                .disabled(model.isApplying)
                 Spacer()
                 Button("Done") { dismiss() }
                     .glassButton(prominent: true)
@@ -64,6 +65,7 @@ private struct IssueRow: View {
                 if let app = AppChoice.pickApp(model: model, navigation: navigation) { chooseApp(app) }
             }
             .controlSize(.small)
+            .disabled(model.isApplying)
         }
         .padding(.vertical, 4)
     }

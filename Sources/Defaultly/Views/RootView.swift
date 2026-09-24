@@ -59,6 +59,8 @@ struct RootView: View {
             Text(verbatim: alert.message)
         }
         .task { await model.loadIfNeeded() }
+        // Picking a sidebar item leaves a format search; revealing a format clears it first anyway.
+        .onChange(of: navigation.sidebar) { navigation.searchText = "" }
     }
 }
 

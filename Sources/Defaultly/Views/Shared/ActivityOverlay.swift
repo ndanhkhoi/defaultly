@@ -43,9 +43,14 @@ struct ActivityOverlay: View {
                     .glassButton()
                 Button("Retry") { Task { await model.retry(summary, undoManager: undoManager) } }
                     .glassButton()
-            } else if summary.offersUndo {
-                Button("Undo") { undoManager?.undo() }
-                    .glassButton()
+                    .disabled(model.isApplying)
+            } else if summary.offersUndo, isLatestUndo(summary) {
+                Button("Undo") {
+                    // Re-check at click time: another undoable action may have happened since.
+                    if isLatestUndo(summary) { undoManager?.undo() }
+                    model.activity = .idle
+                }
+                .glassButton()
             }
             Button {
                 model.activity = .idle
@@ -61,6 +66,11 @@ struct ActivityOverlay: View {
             try? await Task.sleep(for: .seconds(8))
             if model.activity == .finished(summary) { model.activity = .idle }
         }
+    }
+
+    /// The toast's Undo must undo this change, not whatever happens to be on top of the stack.
+    private func isLatestUndo(_ summary: ApplySummary) -> Bool {
+        undoManager?.canUndo == true && undoManager?.undoActionName == summary.title
     }
 
     private func capsule(@ViewBuilder content: () -> some View) -> some View {

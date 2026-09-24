@@ -9,8 +9,6 @@ struct FormatDetailView: View {
     @Environment(\.undoManager) private var undoManager
     let format: FileFormat
 
-    private let visibleApps = 4
-
     var body: some View {
         let status = model.statuses[format.ext]
         let others = (status?.candidates ?? []).filter { !$0.isSameApp(as: status?.current) }
@@ -56,16 +54,7 @@ struct FormatDetailView: View {
                     Text("No other installed app says it can open this format.")
                         .foregroundStyle(.secondary)
                 }
-                ForEach(others.prefix(visibleApps)) { app in
-                    candidateRow(app)
-                }
-                if others.count > visibleApps {
-                    DisclosureGroup("\(others.count - visibleApps) More Apps") {
-                        ForEach(others.dropFirst(visibleApps)) { app in
-                            candidateRow(app)
-                        }
-                    }
-                }
+                CappedAppList(items: others) { candidateRow($0) }
                 Button("Choose Another App…") {
                     if let app = AppChoice.pickApp(model: model, navigation: navigation) { makeDefault(app) }
                 }

@@ -11,9 +11,9 @@ struct ChangeReviewList: View {
     var body: some View {
         ForEach(groups, id: \.id) { group in
             Section {
-                ForEach(group.indices, id: \.self) { index in
-                    Toggle(isOn: $items[index].isIncluded) {
-                        ChangeRow(item: items[index], showsTarget: showsTarget)
+                ForEach(group.items) { item in
+                    Toggle(isOn: isIncluded(item.id)) {
+                        ChangeRow(item: item, showsTarget: showsTarget)
                     }
                     .toggleStyle(.checkbox)
                 }
@@ -21,9 +21,9 @@ struct ChangeReviewList: View {
                 HStack {
                     Text(verbatim: group.name)
                     Spacer()
-                    let allIncluded = group.indices.allSatisfy { items[$0].isIncluded }
+                    let allIncluded = group.items.allSatisfy(\.isIncluded)
                     Button {
-                        for index in group.indices { items[index].isIncluded = !allIncluded }
+                        setIncluded(!allIncluded, for: Set(group.items.map(\.id)))
                     } label: {
                         if allIncluded { Text("Deselect All") } else { Text("Select All") }
                     }
@@ -34,17 +34,31 @@ struct ChangeReviewList: View {
         }
     }
 
-    private var groups: [(id: String, name: String, indices: [Int])] {
+    /// Bound by ID rather than index, so replacing `items` with a shorter list can't go out of range.
+    private func isIncluded(_ id: FileExtension) -> Binding<Bool> {
+        Binding(
+            get: { items.first { $0.id == id }?.isIncluded ?? false },
+            set: { setIncluded($0, for: [id]) }
+        )
+    }
+
+    private func setIncluded(_ isIncluded: Bool, for ids: Set<FileExtension>) {
+        for index in items.indices where ids.contains(items[index].id) {
+            items[index].isIncluded = isIncluded
+        }
+    }
+
+    private var groups: [(id: String, name: String, items: [PlanItem])] {
         var order: [String] = []
-        var indicesByCategory: [String: [Int]] = [:]
-        for (index, item) in items.enumerated() {
+        var itemsByCategory: [String: [PlanItem]] = [:]
+        for item in items {
             let id = item.format.categoryID
-            if indicesByCategory[id] == nil { order.append(id) }
-            indicesByCategory[id, default: []].append(index)
+            if itemsByCategory[id] == nil { order.append(id) }
+            itemsByCategory[id, default: []].append(item)
         }
         return order.map { id in
             let name = model.library.category(id: id)?.displayName ?? id
-            return (id, name, indicesByCategory[id] ?? [])
+            return (id, name, itemsByCategory[id] ?? [])
         }
     }
 }
@@ -84,13 +98,15 @@ private struct ChangeRow: View {
 struct ApplyBar: View {
     @Environment(AppModel.self) private var model
     let items: [PlanItem]
+    /// Changes outside `items` that Apply also makes, such as custom formats a backup re-creates.
+    var otherChanges = 0
     var cancel: (() -> Void)?
     let apply: () -> Void
 
     var body: some View {
-        let included = items.filter(\.isIncluded).count
+        let included = items.filter(\.isIncluded).count + otherChanges
         HStack(spacing: 12) {
-            Text("\(included) of \(items.count) selected")
+            Text("\(included) of \(items.count + otherChanges) selected")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()

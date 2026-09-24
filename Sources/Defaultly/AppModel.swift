@@ -45,6 +45,8 @@ final class AppModel {
     /// Bumped whenever associations change, so dependent views can recompute.
     private(set) var revision = 0
     var activity: Activity = .idle
+    /// The latest apply; each new one waits for it, so Undo pressed mid-apply is queued, not lost.
+    private var lastApply: Task<ApplyReport, Never>?
 
     init(service: AssociationService, locator: any AppLocating, store: CustomFormatStore) {
         self.service = service
@@ -67,7 +69,7 @@ final class AppModel {
     }
 
     func reload() async {
-        guard !isLoading else { return }
+        guard !isLoading, !isApplying else { return }
         isLoading = true
         let extensions = library.allExtensions
         let service = service
@@ -126,10 +128,10 @@ final class AppModel {
         library.allFormats.filter { app.isSameApp(as: statuses[$0.ext]?.current) }
     }
 
-    /// How many formats each app opens, keyed by bundle ID.
+    /// How many of the library's formats each app opens, keyed by bundle ID.
     var defaultCounts: [String: Int] {
-        statuses.values.reduce(into: [:]) { counts, status in
-            if let app = status.current { counts[app.bundleID, default: 0] += 1 }
+        library.allExtensions.reduce(into: [:]) { counts, ext in
+            if let app = statuses[ext]?.current { counts[app.bundleID, default: 0] += 1 }
         }
     }
 
@@ -145,7 +147,7 @@ final class AppModel {
     }
 
     func app(at url: URL) -> AppInfo? {
-        service.app(at: url)
+        locator.app(at: url)
     }
 
     /// Formats `app` can open but does not open yet, including extensions it declares that
@@ -162,12 +164,9 @@ final class AppModel {
         return PlanBuilder.items(
             for: known + unknownFormats,
             assigning: app,
-            statuses: statuses.merging(unknownStatuses) { current, _ in current }
-        ).map { item in
-            var item = item
-            item.isIncluded = false
-            return item
-        }
+            statuses: statuses.merging(unknownStatuses) { current, _ in current },
+            including: .none
+        )
     }
 
     // MARK: - Changing associations
@@ -178,8 +177,13 @@ final class AppModel {
 
     /// Applies assignments with verification and registers them for Undo/Redo.
     func apply(_ assignments: [Assignment], named title: String, undoManager: UndoManager?) async {
-        guard let report = await execute(assignments, title: title, offersUndo: undoManager != nil) else { return }
-        registerUndo(undo: report.undoAssignments, redo: report.redoAssignments, title: title, undoManager: undoManager)
+        guard let report = await execute(assignments, title: title, offersUndo: undoManager != nil),
+              let undoManager
+        else { return }
+        ReversibleChange(title: title, report: report).register(on: undoManager, target: self) { [weak self] assignments, isUndo in
+            let actionTitle = isUndo ? String(localized: "Undo \(title)") : String(localized: "Redo \(title)")
+            Task { await self?.execute(assignments, title: actionTitle, offersUndo: false) }
+        }
     }
 
     /// Applies the included items of a reviewed plan, adding any new custom formats first.
@@ -196,8 +200,20 @@ final class AppModel {
         await apply(summary.retryable, named: summary.title, undoManager: undoManager)
     }
 
+    /// Runs after any apply already in progress.
+    @discardableResult
     private func execute(_ assignments: [Assignment], title: String, offersUndo: Bool) async -> ApplyReport? {
-        guard !assignments.isEmpty, !isApplying else { return nil }
+        guard !assignments.isEmpty else { return nil }
+        let previous = lastApply
+        let current = Task {
+            _ = await previous?.value
+            return await run(assignments, title: title, offersUndo: offersUndo)
+        }
+        lastApply = current
+        return await current.value
+    }
+
+    private func run(_ assignments: [Assignment], title: String, offersUndo: Bool) async -> ApplyReport {
         inFlight = Set(assignments.map(\.ext))
         activity = .applying(title: title, count: assignments.count)
         let report = await service.apply(assignments)
@@ -213,21 +229,6 @@ final class AppModel {
         activity = .finished(summary)
         AccessibilityNotification.Announcement(summary.message).post()
         return report
-    }
-
-    /// Undo applies `undo` and registers the mirror action, which UndoManager files as redo.
-    private func registerUndo(undo: [Assignment], redo: [Assignment], title: String, undoManager: UndoManager?) {
-        guard let undoManager, !undo.isEmpty else { return }
-        undoManager.registerUndo(withTarget: self) { model in
-            MainActor.assumeIsolated {
-                let actionTitle = undoManager.isUndoing
-                    ? String(localized: "Undo \(title)")
-                    : String(localized: "Redo \(title)")
-                model.registerUndo(undo: redo, redo: undo, title: title, undoManager: undoManager)
-                Task { await model.execute(undo, title: actionTitle, offersUndo: false) }
-            }
-        }
-        undoManager.setActionName(title)
     }
 
     // MARK: - Custom formats
@@ -257,9 +258,7 @@ final class AppModel {
         customFormats.removeAll { extensions.contains($0.ext) }
         saveCustomFormats()
         undoManager?.registerUndo(withTarget: self) { model in
-            MainActor.assumeIsolated {
-                model.restoreCustomFormats(removed, undoManager: undoManager)
-            }
+            model.restoreCustomFormats(removed, undoManager: undoManager)
         }
         undoManager?.setActionName(String(localized: "Remove Custom Formats"))
     }
@@ -268,9 +267,7 @@ final class AppModel {
         customFormats += formats.filter { customFormat(for: $0.ext) == nil }
         saveCustomFormats()
         undoManager?.registerUndo(withTarget: self) { model in
-            MainActor.assumeIsolated {
-                model.removeCustomFormats(Set(formats.map(\.ext)), undoManager: undoManager)
-            }
+            model.removeCustomFormats(Set(formats.map(\.ext)), undoManager: undoManager)
         }
         undoManager?.setActionName(String(localized: "Remove Custom Formats"))
     }

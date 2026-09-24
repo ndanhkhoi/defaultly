@@ -8,6 +8,7 @@ struct BackupFlow {
     let navigation: Navigation
 
     func export() {
+        guard model.hasLoaded else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = String(localized: "Defaultly Backup \(Date().formatted(.iso8601.year().month().day())).json")
@@ -25,6 +26,7 @@ struct BackupFlow {
     }
 
     func restore() async {
+        guard model.hasLoaded, !model.isApplying else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
