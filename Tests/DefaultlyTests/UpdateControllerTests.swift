@@ -127,6 +127,94 @@ struct UpdateControllerTests {
         #expect(harness.installer.installs == 0)
     }
 
+    @Test func closingTheWindowMidDownloadAsksBeforeRelaunching() async {
+        let harness = Harness()
+        harness.controller.checkNow()
+        await harness.finishWork()
+        harness.controller.install()
+        harness.controller.dismiss()
+        await harness.finishWork()
+        #expect(harness.isReady)
+        #expect(harness.presenter.isVisible)
+        #expect(harness.installer.installs == 0)
+        #expect(harness.relauncher.count == 0)
+        // "Install on Quit" keeps its promise, whatever the automatic settings say.
+        harness.controller.automaticallyInstalls = true
+        harness.controller.automaticallyInstalls = false
+        harness.controller.automaticallyChecks = false
+        #expect(harness.isReady)
+        harness.controller.installOnQuit()
+        #expect(harness.installer.installs == 1)
+    }
+
+    @Test func reopeningTheWindowMidDownloadStillRelaunches() async {
+        let harness = Harness(prepareDelay: .milliseconds(50))
+        harness.controller.checkNow()
+        await harness.finishWork()
+        harness.controller.install()
+        harness.controller.dismiss()
+        harness.controller.checkNow()
+        await harness.finishWork()
+        #expect(harness.installer.installs == 1)
+        #expect(harness.relauncher.count == 1)
+    }
+
+    @Test func aFailedInstallOnQuitIsExplainedAtTheNextLaunch() async {
+        let defaults = Harness.defaults()
+        let quitting = Harness(installError: .invalidSignature, automaticallyInstalls: true, defaults: defaults)
+        quitting.controller.checkIfDue()
+        await quitting.finishWork()
+        quitting.controller.installOnQuit()
+        #expect(quitting.installer.installs == 1)
+
+        let relaunched = Harness(automaticallyInstalls: true, defaults: defaults)
+        relaunched.controller.checkIfDue()
+        await relaunched.finishWork()
+        guard case .failed(_, let update) = relaunched.controller.phase else {
+            Issue.record("expected the failure, got \(relaunched.controller.phase)")
+            return
+        }
+        #expect(update?.release.version == AppVersion("1.1.0"))
+        #expect(relaunched.presenter.isVisible)
+        #expect(relaunched.installer.prepares == 0)
+
+        // Shown once: the next check downloads it again.
+        relaunched.controller.dismiss()
+        relaunched.controller.checkIfDue(now: .now.addingTimeInterval(UpdateSchedule.interval + 60))
+        await relaunched.finishWork()
+        #expect(relaunched.isReady)
+    }
+
+    @Test func aFailedInstallOnQuitIsExplainedEvenWithAutomaticChecksOffAndTheVersionSkipped() async {
+        let defaults = Harness.defaults()
+        let quitting = Harness(installError: .invalidSignature, defaults: defaults)
+        quitting.controller.checkIfDue()
+        await quitting.finishWork()
+        quitting.controller.skip()
+        quitting.controller.checkNow()
+        await quitting.finishWork()
+        quitting.controller.install()
+        quitting.controller.dismiss()
+        await quitting.finishWork()
+        quitting.controller.automaticallyChecks = false
+        quitting.controller.installOnQuit()
+        #expect(quitting.installer.installs == 1)
+
+        let relaunched = Harness(defaults: defaults)
+        relaunched.controller.checkIfDue()
+        await relaunched.finishWork()
+        guard case .failed(_, let update) = relaunched.controller.phase else {
+            Issue.record("expected the failure, got \(relaunched.controller.phase)")
+            return
+        }
+        #expect(update?.release.version == AppVersion("1.1.0"))
+
+        // Shown once: automatic checks stay off after that.
+        relaunched.controller.dismiss()
+        relaunched.controller.checkIfDue(now: .now.addingTimeInterval(UpdateSchedule.interval + 60))
+        #expect(relaunched.controller.phase == .idle)
+    }
+
     @Test func cancellingADownloadOffersTheUpdateAgain() async {
         let harness = Harness(prepareDelay: .seconds(10))
         harness.controller.checkNow()
@@ -172,17 +260,18 @@ private struct Harness {
         sourceDelay: Duration = .zero,
         prepareDelay: Duration = .zero,
         prepareError: UpdateError? = nil,
+        installError: UpdateError? = nil,
         automaticallyInstalls: Bool = false,
         relaunchFails: Bool = false,
-        lastLaunched: String? = nil
+        lastLaunched: String? = nil,
+        defaults: UserDefaults = Harness.defaults()
     ) {
-        let defaults = UserDefaults(suiteName: "defaultly-tests-\(UUID().uuidString)")!
         let preferences = UpdatePreferences(defaults: defaults)
         preferences.automaticallyInstalls = automaticallyInstalls
         preferences.lastLaunchedVersion = lastLaunched.flatMap(AppVersion.init)
         let app = FileManager.default.temporaryDirectory.appendingPathComponent("defaultly-controller-\(UUID().uuidString)/Defaultly.app")
         try? FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
-        installer = FakeInstaller(delay: prepareDelay, error: prepareError)
+        installer = FakeInstaller(delay: prepareDelay, error: prepareError, installError: installError)
         relauncher = FakeRelauncher(fails: relaunchFails)
         let relauncher = relauncher
         controller = UpdateController(
@@ -206,6 +295,11 @@ private struct Harness {
 
     func finishWork() async {
         await controller.work?.value
+    }
+
+    /// Fresh defaults; pass the same ones to a second harness to stand for the next launch.
+    static func defaults() -> UserDefaults {
+        UserDefaults(suiteName: "defaultly-tests-\(UUID().uuidString)")!
     }
 
     static func release(_ version: String) -> Release {
@@ -270,13 +364,15 @@ private struct FakeFeed: ReleaseSource {
 private final class FakeInstaller: UpdateInstalling, @unchecked Sendable {
     private let delay: Duration
     private let error: UpdateError?
+    private let installError: UpdateError?
     private let lock = NSLock()
     private var prepareCount = 0
     private var installCount = 0
 
-    init(delay: Duration, error: UpdateError?) {
+    init(delay: Duration, error: UpdateError?, installError: UpdateError?) {
         self.delay = delay
         self.error = error
+        self.installError = installError
     }
 
     var prepares: Int { lock.withLock { prepareCount } }
@@ -292,5 +388,6 @@ private final class FakeInstaller: UpdateInstalling, @unchecked Sendable {
 
     func install(_ update: PreparedUpdate, replacing appURL: URL) throws {
         lock.withLock { installCount += 1 }
+        if let installError { throw installError }
     }
 }

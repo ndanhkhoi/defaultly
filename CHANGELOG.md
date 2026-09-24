@@ -3,6 +3,13 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
+## Unreleased
+
+- **Fixed:** closing the Software Update window after choosing **Install and Relaunch** made Defaultly quit and
+  reopen by itself as soon as the download finished. It now shows the window again, so you choose **Relaunch Now** or
+  **Install on Quit**.
+- **Fixed:** when an update couldn't be installed as Defaultly quit, nothing said so. The next launch now shows why.
+
 ## 1.1.2 - 2026-09-24
 
 - **Fixed:** Defaultly quit on macOS 27 when it found an update, whether you chose **Check for Updates…** or it

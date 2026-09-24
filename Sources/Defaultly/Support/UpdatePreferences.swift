@@ -30,6 +30,12 @@ struct UpdatePreferences {
         nonmutating set { defaults.set(newValue?.description, forKey: Key.skippedVersion) }
     }
 
+    /// Why installing an update on quit failed; the next check shows it once.
+    var installFailure: String? {
+        get { defaults.string(forKey: Key.installFailure) }
+        nonmutating set { defaults.set(newValue, forKey: Key.installFailure) }
+    }
+
     /// The version that ran last, to tell an update from a fresh install.
     var lastLaunchedVersion: AppVersion? {
         get { defaults.string(forKey: Key.lastLaunchedVersion).flatMap(AppVersion.init) }
@@ -42,5 +48,6 @@ struct UpdatePreferences {
         static let lastCheck = "lastUpdateCheck"
         static let skippedVersion = "skippedUpdateVersion"
         static let lastLaunchedVersion = "lastLaunchedVersion"
+        static let installFailure = "updateInstallFailure"
     }
 }
