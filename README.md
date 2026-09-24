@@ -41,12 +41,34 @@ Defaultly shows every format, the app that opens it, and the apps that could. Yo
 ## Install
 
 1. Download `Defaultly-<version>.dmg` from the [latest release](https://github.com/ndanhkhoi/defaultly/releases/latest), open it, and drag **Defaultly** into **Applications**.
-2. The app is ad-hoc signed but not notarized, so macOS blocks the first launch:
-   - **macOS 15 or later:** open Defaultly once, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
-   - **macOS 14:** Control-click Defaultly in Applications and choose **Open**.
-   - Or run `xattr -dr com.apple.quarantine /Applications/Defaultly.app`.
+2. Open Defaultly for the first time, as described below.
 
 Universal build for Apple silicon and Intel. Verify downloads with `SHA256SUMS.txt`.
+
+### First launch: allow Defaultly in System Settings
+
+Defaultly is signed ad-hoc, not with a paid Apple Developer ID, so Apple hasn't notarized it. Gatekeeper therefore blocks it the first time you open it. You only need to allow it once; after that it opens normally.
+
+**macOS 15 Sequoia or later**
+
+1. Open **Defaultly** from Applications. macOS says it can't verify the app. Click **Done**, not *Move to Trash*.
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**. Next to *“Defaultly.app” was blocked to protect your Mac*, click **Open Anyway**.
+
+   <img src="docs/images/first-launch-privacy-security.png" width="640" alt="System Settings, Privacy &amp; Security: “Defaultly.app” was blocked to protect your Mac, with an Open Anyway button">
+
+3. macOS asks again. Click **Open Anyway**, then enter your password or use Touch ID.
+
+   <img src="docs/images/first-launch-open-anyway.png" width="300" alt="Dialog: Open “Defaultly.app”? with Move to Trash, Open Anyway and Done buttons">
+
+**macOS 14 Sonoma:** Control-click **Defaultly** in Applications, choose **Open**, then click **Open** in the dialog.
+
+**Terminal (any version):** removing the quarantine flag skips all of the above:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Defaultly.app
+```
+
+The warning is expected for apps distributed without a Developer ID; it isn't a sign of malware. Every release is built from this repository's source by [GitHub Actions](https://github.com/ndanhkhoi/defaultly/actions/workflows/release.yml), and you can check the download against `SHA256SUMS.txt`.
 
 ## Use
 
