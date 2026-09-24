@@ -7,6 +7,7 @@ struct ReleaseNotesScreen: View {
     static let windowID = "release-notes"
 
     @Environment(UpdateController.self) private var updates
+    @Environment(\.openURL) private var openURL
     private let sections = Self.bundledChangelog().map(ReleaseNotesList.Section.init)
 
     var body: some View {
@@ -33,7 +34,8 @@ struct ReleaseNotesScreen: View {
                     Button("Check for Updates…") { updates.checkNow() }
                         .help("Check whether a newer version of Defaultly is available.")
                 }
-                Link(destination: ProjectLinks.releases) {
+                // A button, not a `Link`: a link in the toolbar doesn't get the toolbar's button style.
+                Button { openURL(ProjectLinks.releases) } label: {
                     Label("All Releases on GitHub", systemImage: "arrow.up.forward.square")
                 }
                 .help("Open Defaultly's releases on GitHub")
