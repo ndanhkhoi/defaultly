@@ -15,13 +15,14 @@ Changing which app opens a file type on macOS is tedious:
 
 | # | Goal | Measured by |
 |---|------|-------------|
-| G1 | No external dependencies | Only `NSWorkspace` + `UniformTypeIdentifiers` |
+| G1 | No external dependencies | System frameworks only (`NSWorkspace`, `UniformTypeIdentifiers`, `URLSession`, `Security`, `CryptoKit`); no third-party packages |
 | G2 | Cover every file type | Catalog ≥ 350 formats in 17 categories, plus unlimited custom formats |
 | G3 | Change a whole group in one action | Quick Setup per category for any installed app, plus multi-app suites |
 | G4 | Suggest formats and apps | Search suggestions, apps ranked by coverage, format suggestions per app |
 | G5 | Safe by default | Preview before applying, verify after applying, Undo/Redo, Backup/Restore |
 | G6 | Install and run | Universal (arm64 + x86_64) `.dmg`/`.zip` built by CI on every release tag |
 | G7 | Bilingual | Full English and Vietnamese UI, including category and format names |
+| G8 | Stays current | Finds a new release within a day, installs it in place after verifying it, and shows what changed |
 
 ## 3. Scope v1.0
 
@@ -65,15 +66,24 @@ The user checks formats, then applies.
 - English (development language) and Vietnamese (`en.lproj`, `vi.lproj`).
 - Follows the system language by default. **Settings → Language** offers System / English / Tiếng Việt (stored as the app's `AppleLanguages`, applied after relaunch with a **Relaunch** button).
 
+### F8. Updates and release notes
+- **Check**: once a day (and at launch when a day has passed), read the GitHub Releases of the repository. **Defaultly → Check for Updates…** checks right away. Drafts, pre-releases and releases without their zip and `SHA256SUMS.txt` are ignored.
+- **Offer**: when a newer version exists, the Software Update window shows the notes of every version since the running one, with **Install and Relaunch**, **Remind Me Later** and **Skip This Version**. Skipped versions aren't offered by automatic checks again; a newer version is.
+- **Install**: download the zip, require its SHA-256 to match `SHA256SUMS.txt`, unpack it, require the running app's bundle ID, the release's version and a valid code signature (from the same team once the app is Developer ID signed), then move the new bundle into place and relaunch. A failure leaves the old app in place and offers **Try Again** or **Download Manually…**.
+- **Automatic install** (Settings, off by default): download and verify in the background, install when the app quits.
+- **Where it can't install** (running from the disk image, a translocated copy, or a folder the user can't write to): explain why and offer the download instead.
+- **Release notes**: `CHANGELOG.md` is the single source. The release workflow publishes the tag's section as the GitHub release notes and refuses to release without it. The app bundles it for **Help → Release Notes**, which also opens on the first launch after an update.
+- **Settings → Updates**: automatic checks (on by default), automatic install, last check time, **Check Now**.
+
 ### Out of scope (YAGNI)
-URL schemes (browser/mail handlers), menu bar extra, CLI, auto-update (Sparkle), App Store/sandbox, telemetry, languages other than English and Vietnamese.
+URL schemes (browser/mail handlers), menu bar extra, CLI, App Store/sandbox, telemetry, delta updates, beta channel, languages other than English and Vietnamese.
 
 ## 4. Non-functional requirements
 
 - **Platform**: macOS 14 Sonoma or later. Liquid Glass on macOS 26+, with a material fallback on 14–15.
 - **Performance**: reading about 400 formats takes < 300 ms and never blocks the UI; applying a batch of any size takes about 1–2 s (plus one confirmation per format macOS protects).
-- **Distribution**: GitHub Releases, ad-hoc signed (no Apple Developer ID). The README explains the Gatekeeper first-launch step.
-- **Privacy**: no network access, no data collection. The app only reads and writes the current user's LaunchServices handlers.
+- **Distribution**: GitHub Releases, ad-hoc signed (no Apple Developer ID). The README explains the Gatekeeper first-launch step, which updates installed by the app don't need. The release workflow signs with a Developer ID and notarizes when Apple credentials are configured (`docs/code-signing-and-notarization.md`).
+- **Privacy**: no data collection. The only network access is reading GitHub releases (the update check, which can be turned off) and downloading an update. The app only reads and writes the current user's LaunchServices handlers.
 
 ## 5. UI/UX standards
 
@@ -106,4 +116,6 @@ URL schemes (browser/mail handlers), menu bar extra, CLI, auto-update (Sparkle),
 5. Undo restores the previous default apps; Redo re-applies them.
 6. Export → Restore brings back the same associations.
 7. The UI is fully available in English and Vietnamese; switching language in Settings takes effect after relaunch.
-8. Pushing a `v*` tag creates a GitHub Release with `Defaultly-<ver>.dmg`, `.zip` and `SHA256SUMS.txt`.
+8. Pushing a `v*` tag creates a GitHub Release with `Defaultly-<ver>.dmg`, `.zip` and `SHA256SUMS.txt`, and its notes from `CHANGELOG.md`.
+9. A build older than the latest release offers it with its notes, and **Install and Relaunch** runs the new version from the same path without a Gatekeeper prompt. A download that fails verification is never installed.
+10. The first launch after an update opens Release Notes.

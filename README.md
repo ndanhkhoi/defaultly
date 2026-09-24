@@ -36,7 +36,8 @@ Defaultly shows every format, the app that opens it, and the apps that could. Yo
 - **Undo and Redo** from the Edit menu (⌘Z / ⇧⌘Z) or the confirmation toast. **Backup and Restore** your associations as JSON.
 - **Complete, not partial**: sets every content type behind an extension (`.docx` alone has four), not just one.
 - **Native Mac app**: Liquid Glass on macOS 26, sidebar → table → inspector layout, full keyboard and VoiceOver support. English and Vietnamese, switchable in Settings.
-- **Private**: no network access, no data collection.
+- **Updates**: Defaultly checks GitHub for a new version once a day and shows what changed. **Install and Relaunch** verifies the download (checksum and code signature) and replaces the app in place. **Help → Release Notes** lists every version.
+- **Private**: no data collection. The only network access is the daily update check against GitHub, which you can turn off in Settings.
 
 ## Install
 
@@ -70,6 +71,17 @@ xattr -dr com.apple.quarantine /Applications/Defaultly.app
 
 The warning is expected for apps distributed without a Developer ID; it isn't a sign of malware. Every release is built from this repository's source by [GitHub Actions](https://github.com/ndanhkhoi/defaultly/actions/workflows/release.yml), and you can check the download against `SHA256SUMS.txt`.
 
+### Updates
+
+You only allow Defaultly once. After that it updates itself, and macOS doesn't ask again: Gatekeeper only checks files marked as downloaded from the internet, as browsers mark them, and Defaultly's own downloads aren't marked that way. Defaultly 1.0.x has no updater yet, so install the next version from the release page once. It installs an update only when the download matches the release's `SHA256SUMS.txt` and the new app's code signature is valid.
+
+- Defaultly checks once a day. When there's a new version, it shows the release notes with **Install and Relaunch**, **Remind Me Later** and **Skip This Version**.
+- **Defaultly → Check for Updates…** checks right away.
+- **Settings → Updates**: turn automatic checks off, or let Defaultly download updates in the background and install them when you quit.
+- If Defaultly runs from the disk image or the Downloads folder, move it to **Applications** first; otherwise it offers the download instead.
+
+Why there is no way around the first-launch step without a paid Apple Developer ID: [docs/code-signing-and-notarization.md](docs/code-signing-and-notarization.md).
+
 ## Use
 
 | To… | Do this |
@@ -82,6 +94,7 @@ The warning is expected for apps distributed without a Developer ID; it isn't a 
 | Undo | ⌘Z, or **Undo** in the confirmation toast |
 | Back up / restore | **File → Export Backup…** (⇧⌘E) / **Restore from Backup…** (⇧⌘O) |
 | Switch language | **Defaultly → Settings… → Language** |
+| Update | **Defaultly → Check for Updates…**; see what changed in **Help → Release Notes** |
 
 If macOS keeps an app for a format (usually one another app "owns"), Defaultly asks macOS through its confirmation API. Allow the system prompt to finish the change.
 
@@ -99,7 +112,7 @@ make package   # universal .dmg and .zip in dist/
 
 The project is a Swift package with no Xcode project and no dependencies:
 
-- `Sources/DefaultlyCore`: formats catalog, models and services behind small protocols (`LaunchServicesClient`, `AppLocating`), unit-tested with fakes.
+- `Sources/DefaultlyCore`: formats catalog, models, the updater and services behind small protocols (`LaunchServicesClient`, `AppLocating`, `ReleaseSource`), unit-tested with fakes.
 - `Sources/Defaultly`: the SwiftUI app.
 - `scripts/`: app bundling, packaging and icon rendering. `.github/workflows/`: CI, and releases on `v*` tags.
 
@@ -107,7 +120,7 @@ See [docs/system-architecture.md](docs/system-architecture.md), [docs/code-stand
 
 ## Contributing
 
-Issues and pull requests are welcome. To add formats or categories, edit `Sources/DefaultlyCore/Catalog/FileTypeCatalog.swift` and add the Vietnamese names to `Resources/vi.lproj/Localizable.strings`; `make test` checks both.
+Issues and pull requests are welcome. Describe user-visible changes under **Unreleased** in [CHANGELOG.md](CHANGELOG.md): releases take their notes from it. To add formats or categories, edit `Sources/DefaultlyCore/Catalog/FileTypeCatalog.swift` and add the Vietnamese names to `Resources/vi.lproj/Localizable.strings`; `make test` checks both.
 
 ## License
 

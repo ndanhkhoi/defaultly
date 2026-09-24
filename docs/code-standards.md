@@ -14,6 +14,7 @@
 - Swift API Design Guidelines naming. File name = main type name (PascalCase).
 - Liquid Glass APIs (`glassEffect`, `.glass`, `.glassProminent`) are only used through the adapters in `Support/Glass.swift`, each with an `#available` fallback.
 - No force unwraps outside static catalog data (which the tests validate).
+- Network access only goes through the `ReleaseSource` port (update checks and downloads). Nothing else talks to the network.
 
 ## UI
 - Glass only for the control layer (toolbar, floating status bar, action buttons), never for content.
@@ -27,9 +28,10 @@
 - `make lint` validates the `.strings` / `.stringsdict` files (`plutil -lint`).
 
 ## Tests
-- Swift Testing (`import Testing`). Core is tested with fake ports. No test touches the real LaunchServices database, except the opt-in integration test (`DEFAULTLY_INTEGRATION=1`), which only uses a made-up extension.
+- Swift Testing (`import Testing`). Core is tested with fake ports; `Tests/DefaultlyTests` tests the app's `UpdateController` with a fake feed, installer, window and relaunch. No test touches the real LaunchServices database, except the opt-in integration test (`DEFAULTLY_INTEGRATION=1`), which only uses a made-up extension.
 - Run `make test` before every commit, and `make smoke-test` after UI changes: a debug-only `SmokeTest` drives every screen, selection, sheet and toast in the real app and fails on any crash. CI runs both.
 
 ## Git
 - Conventional Commits (`feat:`, `fix:`, `ci:`, `docs:`, `test:`, `chore:`).
-- Releases are cut by pushing a `vX.Y.Z` tag.
+- Every user-visible change gets a bullet under `## Unreleased` in `CHANGELOG.md` (**New:**, **Fixed:** or plain).
+- To release: rename `## Unreleased` to `## X.Y.Z - YYYY-MM-DD`, commit, then push a `vX.Y.Z` tag. The release workflow publishes that section as the release notes and fails without it; the app bundles the file for Help → Release Notes.
