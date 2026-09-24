@@ -3,8 +3,13 @@ import SwiftUI
 struct DefaultlyCommands: Commands {
     let model: AppModel
     let navigation: Navigation
+    let updates: UpdateController
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") { updates.checkNow() }
+        }
         CommandGroup(replacing: .newItem) {
             Button("New Custom Format…") { navigation.sheet = .newCustomFormats(prefill: "") }
                 .keyboardShortcut("n")
@@ -23,7 +28,8 @@ struct DefaultlyCommands: Commands {
             Divider()
         }
         CommandGroup(replacing: .help) {
-            Link("Defaultly on GitHub", destination: URL(string: "https://github.com/ndanhkhoi/defaultly")!)
+            Button("Release Notes") { openWindow(id: ReleaseNotesScreen.windowID) }
+            Link("Defaultly on GitHub", destination: ProjectLinks.repository)
         }
     }
 }

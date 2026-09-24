@@ -1,5 +1,4 @@
-import AppKit
-import SwiftUI
+import Foundation
 
 enum AppLanguage: String {
     case system
@@ -27,22 +26,6 @@ enum LanguagePreference {
             UserDefaults.standard.removeObject(forKey: key)
         } else {
             UserDefaults.standard.set([language.rawValue], forKey: key)
-        }
-    }
-
-    /// Relaunching only makes sense for the bundled app, not for `swift run`.
-    static var canRelaunch: Bool {
-        Bundle.main.bundleURL.pathExtension == "app"
-    }
-
-    @MainActor
-    static func relaunch() {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, error in
-            // Keep this copy running if the new one couldn't start.
-            guard error == nil else { return }
-            DispatchQueue.main.async { NSApp.terminate(nil) }
         }
     }
 }

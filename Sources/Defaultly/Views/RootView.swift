@@ -5,7 +5,9 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(Navigation.self) private var navigation
+    @Environment(UpdateController.self) private var updates
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -60,8 +62,12 @@ struct RootView: View {
             Text(verbatim: alert.message)
         }
         .task { await model.loadIfNeeded() }
+        .task {
+            updates.start()
+            if updates.takeWhatsNew() { openWindow(id: ReleaseNotesScreen.windowID) }
+        }
         #if DEBUG
-        .task { await SmokeTest.run(model: model, navigation: navigation) }
+        .task { await SmokeTest.run(model: model, navigation: navigation, updates: updates, openWindow: openWindow) }
         #endif
         // Picking a sidebar item leaves a format search; revealing a format clears it first anyway.
         .onChange(of: navigation.sidebar) { navigation.searchText = "" }

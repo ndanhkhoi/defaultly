@@ -3,6 +3,7 @@
 #   VERSION=1.2.3        marketing version (default: latest git tag, else 0.0.0)
 #   BUILD_NUMBER=42      build number (default: commit count)
 #   ARCHS="arm64 x86_64" architectures to include (default: this Mac's)
+#   SIGN_IDENTITY="Developer ID Application: …"   sign for notarization (default: - , ad hoc)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -34,11 +35,17 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 lipo -create "${binaries[@]}" -output "$app/Contents/MacOS/$app_name"
 sed -e "s/__VERSION__/$version/" -e "s/__BUILD__/$build_number/" Resources/Info.plist > "$app/Contents/Info.plist"
-cp Resources/AppIcon.icns "$app/Contents/Resources/"
+cp Resources/AppIcon.icns CHANGELOG.md "$app/Contents/Resources/"
 cp -R Resources/en.lproj Resources/vi.lproj "$app/Contents/Resources/"
 
-# Ad-hoc signature: no Developer ID, but a valid, sealed bundle.
-codesign --force --sign - "$app"
+identity="${SIGN_IDENTITY:--}"
+if [[ "$identity" == "-" ]]; then
+    # Ad-hoc signature: no Developer ID, but a valid, sealed bundle.
+    codesign --force --sign - "$app"
+else
+    # Notarization requires the hardened runtime and a secure timestamp.
+    codesign --force --options runtime --timestamp --sign "$identity" "$app"
+fi
 codesign --verify --strict "$app"
 
 echo "Built $app $version ($build_number) for $(lipo -archs "$app/Contents/MacOS/$app_name")"
