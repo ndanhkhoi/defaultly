@@ -68,7 +68,7 @@ struct ReversibleChangeTests {
         #expect(recorder.calls.isEmpty)
 
         open.yield()
-        await report.value
+        _ = await report.value
         await settle()
         #expect(recorder.calls.map(\.assignments) == [toWord])
     }
