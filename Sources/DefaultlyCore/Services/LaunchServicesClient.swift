@@ -1,0 +1,80 @@
+import AppKit
+import CoreServices
+import UniformTypeIdentifiers
+
+/// How a default app is written.
+public enum AssignmentMethod: Sendable {
+    /// Writes the handler directly: instant and silent, but macOS may quietly ignore it
+    /// for types another app owns.
+    case instant
+    /// Asks macOS through `NSWorkspace`: about 2 s per call, and macOS may ask the user to confirm.
+    case interactive
+}
+
+/// The system database that maps file types to the apps that open them.
+public protocol LaunchServicesClient: Sendable {
+    func defaultApplication(for ext: FileExtension) -> URL?
+    /// Apps that declare they can open the extension, most relevant first.
+    func applications(for ext: FileExtension) -> [URL]
+    func setDefaultApplication(_ app: AppInfo, for ext: FileExtension, using method: AssignmentMethod) async throws
+}
+
+public enum LaunchServicesError: LocalizedError, Equatable {
+    case unknownType(FileExtension)
+
+    public var errorDescription: String? {
+        switch self {
+        case .unknownType(let ext):
+            String(localized: "macOS has no content type for \(ext.description).", bundle: .main)
+        }
+    }
+}
+
+/// `LaunchServicesClient` backed by LaunchServices and `NSWorkspace`.
+public struct SystemLaunchServices: LaunchServicesClient {
+    public init() {}
+
+    public func defaultApplication(for ext: FileExtension) -> URL? {
+        guard let type = ext.contentTypes.first else { return nil }
+        return NSWorkspace.shared.urlForApplication(toOpen: type)
+    }
+
+    public func applications(for ext: FileExtension) -> [URL] {
+        var seen = Set<String>()
+        return ext.contentTypes
+            .flatMap { NSWorkspace.shared.urlsForApplications(toOpen: $0) }
+            .filter { seen.insert($0.standardizedFileURL.path).inserted }
+    }
+
+    /// Sets the preferred content type (the one Finder uses) and, best effort, every alternate one.
+    public func setDefaultApplication(_ app: AppInfo, for ext: FileExtension, using method: AssignmentMethod) async throws {
+        let types = ext.contentTypes
+        guard let preferred = types.first else { throw LaunchServicesError.unknownType(ext) }
+        // Apps picked from outside the usual folders must be known to LaunchServices first.
+        _ = LSRegisterURL(app.url as CFURL, false)
+
+        if method == .instant, let setHandler = Self.setRoleHandler {
+            for type in types {
+                _ = setHandler(type.identifier as CFString, Self.allRoles, app.bundleID as CFString)
+            }
+            return
+        }
+        try await NSWorkspace.shared.setDefaultApplication(at: app.url, toOpen: preferred)
+        for alternate in types.dropFirst() {
+            try? await NSWorkspace.shared.setDefaultApplication(at: app.url, toOpen: alternate)
+        }
+    }
+
+    private typealias SetRoleHandler = @convention(c) (CFString, UInt32, CFString) -> OSStatus
+
+    private static let allRoles = UInt32.max
+
+    /// `LSSetDefaultRoleHandlerForContentType` is deprecated but is still what makes bulk changes
+    /// instant. It is looked up at runtime so the build stays warning-free and the NSWorkspace
+    /// path takes over if the function is ever removed.
+    private static let setRoleHandler: SetRoleHandler? = {
+        let defaultHandle = UnsafeMutableRawPointer(bitPattern: -2) // RTLD_DEFAULT
+        guard let symbol = dlsym(defaultHandle, "LSSetDefaultRoleHandlerForContentType") else { return nil }
+        return unsafeBitCast(symbol, to: SetRoleHandler.self)
+    }()
+}
