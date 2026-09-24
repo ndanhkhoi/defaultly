@@ -11,7 +11,7 @@ import SwiftUI
 enum SmokeTest {
     static let isRequested = ProcessInfo.processInfo.environment["DEFAULTLY_SMOKE_TEST"] != nil
 
-    static func run(model: AppModel, navigation: Navigation) async {
+    static func run(model: AppModel, navigation: Navigation, updates: UpdateController, openWindow: OpenWindowAction) async {
         guard isRequested else { return }
         await model.loadIfNeeded()
         for round in 1...2 {
@@ -20,6 +20,7 @@ enum SmokeTest {
         }
         await exerciseCustomFormats(model: model, navigation: navigation)
         await presentSheetsAndToasts(model: model, navigation: navigation)
+        await presentUpdates(updates, openWindow: openWindow)
         log("smoke test passed")
         exit(0)
     }
@@ -92,6 +93,30 @@ enum SmokeTest {
             await step(.milliseconds(500)) { navigation.sheet = .restore(preview) }
             await step(.milliseconds(300)) { navigation.sheet = nil }
         }
+    }
+
+    /// Every phase of the Software Update window, with notes, then the Release Notes window. Nothing is downloaded.
+    private static func presentUpdates(_ updates: UpdateController, openWindow: OpenWindowAction) async {
+        let page = URL(string: "https://github.com/ndanhkhoi/defaultly/releases")!
+        let notes = "## What's changed\n\n### Added\n- **New:** updates with `code` and a [link](https://example.com)\n  that wraps.\n\n## Install\n1. Steps"
+        let releases = ["9.1.0", "9.0.0"].compactMap(AppVersion.init).map { version in
+            Release(
+                version: version, notes: notes, publishedAt: .now, pageURL: page,
+                archiveURL: page.appending(path: "Defaultly-\(version).zip"), checksumsURL: page.appending(path: "SHA256SUMS.txt")
+            )
+        }
+        guard let update = AvailableUpdate(releases: releases, current: AppVersion("1.0.0")!) else { return }
+        let prepared = PreparedUpdate(release: update.release, appURL: URL(fileURLWithPath: "/nonexistent/Defaultly.app"))
+        let phases: [UpdateController.Phase] = [
+            .idle, .checking, .upToDate, .available(update), .installing(update, progress: 0.4),
+            .installing(update, progress: nil), .ready(prepared, update), .installed(update.release.version),
+            .failed("Smoke", update), .failed("Smoke", nil),
+        ]
+        for phase in phases {
+            await step(.milliseconds(300)) { updates.showForSmokeTest(phase) }
+        }
+        await step(.milliseconds(300)) { updates.showForSmokeTest(nil) }
+        await step(.milliseconds(500)) { openWindow(id: ReleaseNotesScreen.windowID) }
     }
 
     private static func step(_ pause: Duration = .milliseconds(80), _ change: () -> Void) async {

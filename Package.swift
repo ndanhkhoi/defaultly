@@ -11,5 +11,6 @@ let package = Package(
         .target(name: "DefaultlyCore"),
         .executableTarget(name: "Defaultly", dependencies: ["DefaultlyCore"]),
         .testTarget(name: "DefaultlyCoreTests", dependencies: ["DefaultlyCore"]),
+        .testTarget(name: "DefaultlyTests", dependencies: ["Defaultly", "DefaultlyCore"]),
     ]
 )
