@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%@ can also open %lld related formats that currently open with other apps.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%@ can also open %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld related format that currently opens with another app.</string>
+			<key>other</key>
+			<string>%lld related formats that currently open with other apps.</string>
+		</dict>
+	</dict>
+	<key>%lld More Apps</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld More App</string>
+			<key>other</key>
+			<string>%lld More Apps</string>
+		</dict>
+	</dict>
+	<key>%lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+	<key>%lld formats will be skipped because their app isn't installed.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format will be skipped because its app isn't installed.</string>
+			<key>other</key>
+			<string>%lld formats will be skipped because their apps aren't installed.</string>
+		</dict>
+	</dict>
+	<key>Add %lld Formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Add %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld Format</string>
+			<key>other</key>
+			<string>%lld Formats</string>
+		</dict>
+	</dict>
+	<key>Adds %lld custom formats: %@</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Adds %#@count@: %@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld custom format</string>
+			<key>other</key>
+			<string>%lld custom formats</string>
+		</dict>
+	</dict>
+	<key>Apply %lld Changes</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Apply %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld Change</string>
+			<key>other</key>
+			<string>%lld Changes</string>
+		</dict>
+	</dict>
+	<key>Applying %lld changes…</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Applying %#@count@…</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld change</string>
+			<key>other</key>
+			<string>%lld changes</string>
+		</dict>
+	</dict>
+	<key>Choose one app for all %lld formats in this category.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Choose one app for the %lld format in this category.</string>
+			<key>other</key>
+			<string>Choose one app for all %lld formats in this category.</string>
+		</dict>
+	</dict>
+	<key>Couldn't change %lld of %lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Couldn't change %lld of %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+	<key>Created %@ · %lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Created %@ · %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+	<key>Default for %lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Default for %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+	<key>Mostly %@ · %lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Mostly %@ · %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+	<key>Set %@ for %lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Set %@ for %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+	<key>Supports %lld of %lld formats</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>Supports %lld of %#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld format</string>
+			<key>other</key>
+			<string>%lld formats</string>
+		</dict>
+	</dict>
+</dict>
+</plist>
