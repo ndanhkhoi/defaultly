@@ -29,7 +29,7 @@
 - `make lint` validates the `.strings` / `.stringsdict` files (`plutil -lint`).
 
 ## Tests
-- Swift Testing (`import Testing`). Core is tested with fake ports; `Tests/DefaultlyTests` tests the app's `UpdateController` with a fake feed, installer, window and relaunch. No test touches the real LaunchServices database, except the opt-in integration test (`DEFAULTLY_INTEGRATION=1`), which only uses a made-up extension.
+- Swift Testing (`import Testing`). Core is tested with fake ports; `Tests/DefaultlyTests` tests the app's `UpdateController` with a fake feed, installer, window and relaunch, and `AppModel`'s serial queue, Undo and Retry with an in-memory LaunchServices whose writes can be held mid-apply. No test touches the real LaunchServices database, except the opt-in integration test (`DEFAULTLY_INTEGRATION=1`), which only uses a made-up extension.
 - Run `make test` before every commit, and `make smoke-test` after UI changes: a debug-only `SmokeTest` drives every screen, selection, sheet and toast in the real app and fails on any crash. CI runs both.
 
 ## Git
