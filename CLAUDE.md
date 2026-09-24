@@ -20,7 +20,9 @@ make icon              # regenerate Resources/AppIcon.icns from scripts/generate
 Always go through `make` (or the scripts) rather than bare `swift build`: with Command Line Tools only,
 the default macOS 27 SDK makes `@State` a macro whose plugin ships only with Xcode, so
 `scripts/sdk-root.sh` switches to the macOS 26 SDK, and `make test` then passes the Swift Testing
-plugin path explicitly. On CI (Xcode 26 on `macos-26`) no override is used.
+plugin path explicitly. `scripts/swift-flags.sh` adds a linker flag so the binary records that SDK's version:
+without it, SwiftPM stamps 14.0 and SwiftUI keeps its macOS 14 behavior locally (no Liquid Glass), unlike the
+release. Check with `vtool -show-build <binary> | grep sdk`. On CI (Xcode 26 on `macos-26`) no override is used.
 
 ## Architecture
 

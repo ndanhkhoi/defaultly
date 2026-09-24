@@ -20,13 +20,15 @@ app="dist/$app_name.app"
 
 sdk="$(scripts/sdk-root.sh)"
 if [[ -n "$sdk" ]]; then export SDKROOT="$sdk"; fi
+swift_flags="$(scripts/swift-flags.sh)"
 
 # Newer SwiftPM builds every architecture into the same folder, so keep each binary as it's built.
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 binaries=()
 for arch in $archs; do
-    swift build -c release --arch "$arch" --product "$app_name"
+    # shellcheck disable=SC2086 # the flags are separate words; the SDK path has no spaces
+    swift build $swift_flags -c release --arch "$arch" --product "$app_name"
     cp "$(swift build -c release --arch "$arch" --show-bin-path)/$app_name" "$work/$app_name-$arch"
     binaries+=("$work/$app_name-$arch")
 done
