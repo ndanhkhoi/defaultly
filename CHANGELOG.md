@@ -3,13 +3,14 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
-## Unreleased
+## 1.1.0 - 2026-09-24
 
 - **New:** Defaultly checks for updates once a day and shows what's new before you install. **Install and Relaunch**
   downloads the update, verifies it and replaces the app in place, so macOS doesn't ask you to allow it again.
 - **New:** **Defaultly → Check for Updates…**, and an **Updates** section in Settings: turn automatic checks off, or
   let Defaultly download updates in the background and install them when you quit.
 - **New:** **Help → Release Notes** lists the changes in every version, and opens by itself after an update.
+- Coming from 1.0.x? Install this version from the download once; later versions install themselves.
 
 ## 1.0.1 - 2026-09-24
 
