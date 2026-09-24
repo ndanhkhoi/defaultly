@@ -148,6 +148,7 @@
 "“%@” isn't a Defaultly backup, or it is damaged. %@" = "“%@” không phải bản sao lưu Defaultly hoặc đã bị hỏng. %@";
 "Choose Another File" = "Chọn tệp khác";
 "macOS has no content type for %@." = "macOS không có kiểu nội dung cho %@.";
+"The change wasn't allowed." = "Thay đổi không được cho phép.";
 "This backup was made by a newer version of Defaultly (format %lld)." = "Bản sao lưu này được tạo bởi phiên bản Defaultly mới hơn (định dạng %lld).";
 "Language" = "Ngôn ngữ";
 "System Default" = "Theo hệ thống";
