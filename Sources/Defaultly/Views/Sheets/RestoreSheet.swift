@@ -26,7 +26,7 @@ struct RestoreSheet: View {
                         )
                     }
                     if !preview.missingApps.isEmpty {
-                        DisclosureGroup {
+                        RowDisclosureGroup {
                             ForEach(preview.missingApps, id: \.ext) { entry in
                                 LabeledContent(entry.ext.description, value: entry.appName)
                             }

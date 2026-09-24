@@ -9,7 +9,7 @@ struct CappedAppList<Item: Identifiable, Row: View>: View {
     var body: some View {
         ForEach(items.prefix(visibleCount)) { row($0) }
         if items.count > visibleCount {
-            DisclosureGroup("\(items.count - visibleCount) More Apps") {
+            RowDisclosureGroup("\(items.count - visibleCount) More Apps") {
                 ForEach(items.dropFirst(visibleCount)) { row($0) }
             }
         }

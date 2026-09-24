@@ -78,7 +78,7 @@ struct FormatDetailView: View {
             }
 
             Section {
-                DisclosureGroup("Technical Details") {
+                RowDisclosureGroup("Technical Details") {
                     TechnicalDetails(ext: format.ext)
                 }
             }

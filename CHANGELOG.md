@@ -3,6 +3,11 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
+## Unreleased
+
+- **Fixed:** clicking **More Apps**, **Technical Details** or the skipped formats of a backup now opens them. Before,
+  only the small arrow next to them responded.
+
 ## 1.1.0 - 2026-09-24
 
 - **New:** Defaultly checks for updates once a day and shows what's new before you install. **Install and Relaunch**

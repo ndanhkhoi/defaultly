@@ -20,6 +20,7 @@
 - Glass only for the control layer (toolbar, floating status bar, action buttons), never for content.
 - Every screen handles loading / empty / normal / selected / pending / applying / success-undo / error-recovery.
 - Icon-only buttons have `.help` and an accessibility label. Color is never the only signal.
+- Expandable rows use `RowDisclosureGroup`, not `DisclosureGroup`: in a macOS form the system one only responds to its small chevron, so clicking its title does nothing.
 - Views inside `Table` cells, `List`/`Form` rows and menus take plain values (or the model as an explicit parameter) and never read `@Environment(AppModel.self)` / `@Environment(Navigation.self)`. AppKit hosts them separately and keeps updating cells of removed rows after they leave the hierarchy, where the environment object is missing and SwiftUI traps. Screen-level views may read the environment.
 
 ## Localization
