@@ -3,7 +3,7 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
-## Unreleased
+## 1.1.1 - 2026-09-24
 
 - **Fixed:** clicking **More Apps**, **Technical Details** or the skipped formats of a backup now opens them. Before,
   only the small arrow next to them responded.
