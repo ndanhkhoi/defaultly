@@ -9,6 +9,9 @@
 | Minimum macOS | 14 Sonoma with fallback | Liquid Glass on 26+, materials on 14–15 |
 | Signing | Ad-hoc (`codesign -s -`) | Free. Users confirm "Open Anyway" on first launch |
 | Localization | `en.lproj` + `vi.lproj` `Localizable.strings` in the app bundle | Works with SwiftPM + Command Line Tools (no Xcode string catalog compiler needed) |
+| Updates | Own updater on the GitHub Releases API | No dependency, SwiftUI UI, fits SwiftPM + Command Line Tools. Sparkle rejected: a binary framework to embed by hand, an appcast and an EdDSA key in CI, AppKit UI |
+| Update policy | Check daily, ask before installing; automatic install on quit is opt-in | The user stays in control; the check can be turned off |
+| Release notes | `CHANGELOG.md`, published by CI and bundled in the app | One source for GitHub, the update window's history and Help → Release Notes |
 | Rejected | Xcode project, pure AppKit, Tauri, Electron, Flutter | Heavier CI, no real Liquid Glass, or much more code |
 
 ## Overview
@@ -17,6 +20,7 @@
 ┌──────────────────────────── Defaultly (executable, SwiftUI) ───────────────────────────┐
 │  DefaultlyApp ── composition root: Window + Settings + Commands                        │
 │  AppModel (@Observable, @MainActor) ── statuses, apps, activity, custom formats        │
+│  UpdateController (@Observable) ── update phases, daily checks, Software Update window │
 │  Views: Sidebar │ Content (FormatTable / SetupList / AppList) │ Inspector (…Detail)    │
 │  Support: Glass adapters, IconCache, AppPicker, CustomFormatStore, Localization        │
 └───────────────────────────────▲────────────────────────────────────────────────────────┘
@@ -28,8 +32,11 @@
 │  Services: AssociationService (read status, two-phase apply + verify)                  │
 │            PlanBuilder (pending changes), AppRanking (ranking suggestions)             │
 │            DeclaredFormats (Info.plist), AssociationBackup (JSON)                      │
+│  Updates:  AppVersion, Release/AvailableUpdate, ReleaseNotes, Changelog,               │
+│            UpdateInstaller (verify + swap), UpdateSchedule                             │
 │  Ports:    LaunchServicesClient  ◄── SystemLaunchServices (NSWorkspace + UTType)       │
 │            AppLocating           ◄── SystemAppLocator (Bundle + FileManager)           │
+│            ReleaseSource         ◄── GitHubReleaseClient (URLSession)                  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -37,8 +44,8 @@
 
 - **SRP**: each type does one job. `SystemLaunchServices` only talks to LaunchServices, `PlanBuilder` only builds pending changes, and `AppModel` only coordinates UI state.
 - **OCP**: new formats or categories are data edits in `FileTypeCatalog`, and new suites are one more `AppSuite` value. User-defined formats are merged at runtime by `FormatLibrary`. None of these touch logic.
-- **LSP / ISP**: two small ports, `LaunchServicesClient` and `AppLocating`, each with three methods. Tests swap in fakes.
-- **DIP**: `AssociationService` and `AppModel` depend on the ports. Concrete system implementations are injected in `DefaultlyApp`.
+- **LSP / ISP**: three small ports, `LaunchServicesClient`, `AppLocating` and `ReleaseSource`, each with three methods. Tests swap in fakes.
+- **DIP**: `AssociationService`, `AppModel`, `UpdateInstaller` and `UpdateController` depend on the ports. `UpdateController` also takes an `UpdateInstalling`, an `UpdatePresenting` window and a relaunch function, so its state machine is unit-tested with fakes (`Tests/DefaultlyTests`). Concrete system implementations are injected in `DefaultlyApp`.
 - **DRY**: every change flows through `AppModel.apply(_:named:undoManager:)`, including Open With, Quick Setup, app suggestions, restore and Undo/Redo. Every confirmation screen reuses `ChangeReviewList`.
 
 ## Main data flow
@@ -55,6 +62,18 @@
 4. **Report & Undo**: `ApplyReport` summarizes the outcomes and derives the undo/redo assignments. `ReversibleChange` (Core, unit-tested) is registered with `UndoManager` as soon as the apply is queued, holding the apply's task: ⌘Z during an apply undoes that apply once it finishes. Its handler registers the mirrored change first, so Undo and Redo keep alternating, and the entry is removed if the batch turns out to have nothing to revert.
 5. **One queue**: loads, refreshes and applies run through a single serial queue in `AppModel`, so a Refresh can never overwrite newer results and every caller of the first load waits for the same load.
 6. **Local refresh**: only the statuses of the changed extensions are read again.
+
+## Updates
+
+1. **Schedule**: `UpdateController.start()` (from the main window's `.task`) waits a few seconds, then every hour checks whether a day has passed since the last check (`UpdateSchedule`). Checks only run while nothing else is in progress.
+2. **Check**: `GitHubReleaseClient.releases()` reads `GET /repos/ndanhkhoi/defaultly/releases`. `AvailableUpdate` picks the newest installable release above the running version, honoring a skipped version for automatic checks, and keeps every newer release for their notes.
+3. **Ask**: the Software Update window (`UpdateWindow`, an AppKit window so a background check can open it and it is never restored) shows `UpdateView` for the current `UpdateController.Phase`: checking, up to date, available, installing (download progress, then verifying), ready (background download), failed.
+4. **Prepare** (`UpdateInstaller.prepare`): download `SHA256SUMS.txt` and the zip into `~/Library/Caches/<bundle id>/Update`, compare the SHA-256, unpack with `ditto` into a new folder, then require exactly one app whose `Info.plist` (read from disk, since `Bundle` caches per path) has the running bundle ID and the release's version, and a valid signature (`SecStaticCodeCheckValidity`, all architectures, nested code, strict). `CodeSignature.running` decides the rest: an ad-hoc app accepts any valid signature (the checksum ties the download to the release); a Developer ID app requires Apple's Developer ID chain with its own team (a code requirement, so a team ID written into a self-signed signature fails); an unreadable signature accepts nothing.
+5. **Install** (`UpdateInstaller.install`): verify the prepared app again, move it into an item-replacement folder on the app's volume (this may copy; the installed app is untouched), then exchange the two with `renamex_np(RENAME_SWAP)` in one atomic step and delete the old one. A failure at any step leaves the installed app as it was, and nothing of the old bundle, such as a quarantine flag, reaches the new one. Then `Relaunch` starts the new copy and quits; if it can't start, the window says the update is installed.
+6. **Why no Gatekeeper prompt**: the app doesn't set `LSFileQuarantineEnabled`, so its `URLSession` downloads carry no `com.apple.quarantine` flag, and Gatekeeper only assesses quarantined apps. Replacing its own bundle raises no App Management prompt for an ad-hoc app.
+7. **One task**: every check and download runs as `UpdateController.work`, set exactly while the phase is `checking` or `installing`. Cancel reaches it wherever it started; restarting the daily timer never interrupts it; a second click can't start another.
+8. **Automatic install**: with the setting on, a background check prepares the update and waits in `ready`; `NSApplication.willTerminateNotification` installs it, unless the user has turned automatic installs (or checks) off since, which drops it. Relaunching to switch languages installs it first. Locations the app can't replace (`InstallLocationProblem`: not a bundle, translocated, read-only) offer the release page instead.
+9. **Release notes**: `ReleaseNotes.changes(inReleaseBody:)` keeps a GitHub release body's "What's changed" section; `ReleaseNotes.blocks` turns Markdown into headings, bullets and paragraphs that `ReleaseNotesList` renders with inline Markdown. **Help → Release Notes** (`ReleaseNotesScreen`) parses the bundled `CHANGELOG.md` with `Changelog.parse`. `UpdatePreferences.lastLaunchedVersion` detects the first launch after an update, which opens that window.
 
 ## Localization
 
@@ -73,8 +92,9 @@
 ## Build & release
 
 - SwiftPM targets: `DefaultlyCore` (library), `Defaultly` (executable), `DefaultlyCoreTests` (Swift Testing).
-- `scripts/build-app.sh`: build per arch (copying each binary aside, since newer SwiftPM reuses one output folder) → `lipo` → assemble `Defaultly.app` (Info.plist template, `AppIcon.icns`, `*.lproj`) → `codesign --sign -` (ad-hoc).
+- `scripts/build-app.sh`: build per arch (copying each binary aside, since newer SwiftPM reuses one output folder) → `lipo` → assemble `Defaultly.app` (Info.plist template, `AppIcon.icns`, `CHANGELOG.md`, `*.lproj`) → `codesign --sign -` (ad-hoc), or with `SIGN_IDENTITY` a Developer ID signature with the hardened runtime and a timestamp.
 - `scripts/sdk-root.sh`: with Command Line Tools only, selects the macOS 26 SDK, because newer SDKs make `@State` a macro whose plugin ships with Xcode. `make test` then passes the Swift Testing plugin path explicitly.
-- `scripts/package-release.sh`: `.zip` (ditto) + `.dmg` (hdiutil, with an Applications symlink) + `SHA256SUMS.txt`.
+- `scripts/package-release.sh`: `.zip` (ditto) + `.dmg` (hdiutil, with an Applications symlink) + `SHA256SUMS.txt`. With `NOTARIZE=1`: notarize and staple the app first (`scripts/notarize.sh`), then sign, notarize and staple the dmg.
+- `scripts/release-notes.sh <version> [previous-tag]`: the version's `CHANGELOG.md` section + install notes (`.github/install-notes*.md`) + compare link; fails without a section.
 - CI `ci.yml` (push/PR): lint strings, build, test, universal app bundle, upload artifact.
-- CD `release.yml` (tag `v*`): test → universal build → package → `gh release create`.
+- CD `release.yml` (tag `v*`): release notes from `CHANGELOG.md` (fails fast) → lint, test, smoke test → import the Developer ID certificate if the secrets exist → universal build, package (notarized when signed) → `gh release create`. See `docs/code-signing-and-notarization.md`.
