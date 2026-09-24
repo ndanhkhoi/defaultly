@@ -7,6 +7,8 @@ come from this file.
 
 - **Fixed:** Defaultly quit on macOS 27 when it found an update, whether you chose **Check for Updates…** or it
   checked by itself. It now shows the update, as it does on earlier versions of macOS.
+- **Fixed:** in **Help → Release Notes**, the button next to **Check for Updates…** that opens every release on GitHub
+  now looks like a toolbar button.
 
 ## 1.1.1 - 2026-09-24
 
