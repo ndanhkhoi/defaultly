@@ -5,7 +5,7 @@ description: >-
   17-category catalog, custom formats, Quick Setup, per-app suggestions,
   Undo/Redo, Backup/Restore, English + Vietnamese, Liquid Glass UI,
   CI/CD producing universal release builds.
-status: in-progress
+status: completed
 priority: P1
 branch: main
 tags: [feature, macos, swiftui, ci]
@@ -25,7 +25,7 @@ Implement the spec in `docs/project-overview-pdr.md` following `docs/system-arch
 | 2 | [Core domain & services](./phase-02-core-domain.md) | Completed |
 | 3 | [SwiftUI app, Liquid Glass UI & localization](./phase-03-swiftui-app.md) | Completed |
 | 4 | [Packaging (.app, icon, dmg/zip)](./phase-04-packaging.md) | Completed |
-| 5 | [CI/CD & first release](./phase-05-ci-release.md) | Pending |
+| 5 | [CI/CD & first release](./phase-05-ci-release.md) | Completed |
 
 ## Dependencies
 - Phase 3 needs phase 2 (Core ports and models).
@@ -34,6 +34,11 @@ Implement the spec in `docs/project-overview-pdr.md` following `docs/system-arch
 
 ## Acceptance criteria
 See section 6 of `docs/project-overview-pdr.md`.
+
+## Outcome
+- CI green on `main` (macos-26, Xcode 26.6, Swift 6.3.3): lint, 47 unit tests, universal build, 0 warnings.
+- Release [v1.0.0](https://github.com/ndanhkhoi/defaultly/releases/tag/v1.0.0): `Defaultly-1.0.0.dmg`, `.zip`, `SHA256SUMS.txt`; binary `x86_64 arm64`, ad-hoc signed, verified by download.
+- Review outcomes: [reports/code-review-v1-release.md](./reports/code-review-v1-release.md).
 
 ## Risks
 | Risk | Mitigation |
