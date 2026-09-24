@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Packages dist/Defaultly.app as a zip and a dmg, plus SHA-256 checksums.
+#   NOTARIZE=1   the app is Developer ID signed (SIGN_IDENTITY): notarize and staple the app, then sign,
+#                notarize and staple the dmg. Needs the credentials that scripts/notarize.sh reads.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -11,6 +13,16 @@ version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/
 zip="$app_name-$version.zip"
 dmg="$app_name-$version.dmg"
 rm -f "dist/$zip" "dist/$dmg" dist/SHA256SUMS.txt
+
+notarize="${NOTARIZE:-0}"
+identity="${SIGN_IDENTITY:--}"
+if [[ "$notarize" == 1 ]]; then
+    [[ "$identity" != "-" ]] || { echo "error: NOTARIZE=1 needs SIGN_IDENTITY set to a Developer ID" >&2; exit 1; }
+    # Staple the app first, so the zip and the dmg both carry a ticket and open offline.
+    submission="$(mktemp -d)/$app_name.zip"
+    ditto -c -k --keepParent "$app" "$submission"
+    scripts/notarize.sh "$submission" "$app"
+fi
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "dist/$zip"
 
@@ -26,6 +38,11 @@ for attempt in 1 2 3; do
     [[ $attempt -lt 3 ]] || { echo "error: hdiutil create failed" >&2; exit 1; }
     sleep 5
 done
+
+if [[ "$notarize" == 1 ]]; then
+    codesign --force --timestamp --sign "$identity" "dist/$dmg"
+    scripts/notarize.sh "dist/$dmg"
+fi
 
 (cd dist && shasum -a 256 "$zip" "$dmg" > SHA256SUMS.txt)
 echo "Packaged dist/$zip and dist/$dmg"

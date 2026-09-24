@@ -8,4 +8,6 @@
 
    Step-by-step with screenshots: [First launch](https://github.com/ndanhkhoi/defaultly#first-launch-allow-defaultly-in-system-settings).
 
+Already using a Defaultly with **Defaultly → Check for Updates…**? Use it to install this version in place; updates that Defaultly installs itself open without the first-launch step.
+
 Requires macOS 14 Sonoma or later. Universal build for Apple silicon and Intel. Checksums are in `SHA256SUMS.txt`.
