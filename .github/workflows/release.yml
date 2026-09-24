@@ -10,10 +10,22 @@ permissions:
 jobs:
   release:
     runs-on: macos-26
+    env:
+      # With these secrets the release is signed with a Developer ID and notarized
+      # (see docs/code-signing-and-notarization.md); without them it is signed ad hoc.
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Release notes from CHANGELOG.md
+        env:
+          NOTARIZED: ${{ env.APPLE_SIGNING_IDENTITY != '' && '1' || '0' }}
+        run: |
+          previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          scripts/release-notes.sh "${GITHUB_REF_NAME#v}" "$previous" > "$RUNNER_TEMP/release-notes.md"
+          cat "$RUNNER_TEMP/release-notes.md"
 
       - name: Lint resources
         run: make lint
@@ -24,8 +36,34 @@ jobs:
       - name: UI smoke test
         run: make smoke-test
 
+      - name: Import the Developer ID certificate
+        if: env.APPLE_SIGNING_IDENTITY != ''
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          certificate="$RUNNER_TEMP/certificate.p12"
+          echo -n "$APPLE_CERTIFICATE_BASE64" | base64 --decode -o "$certificate"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$certificate" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$certificate"
+          security find-identity -v -p codesigning "$keychain"
+
       - name: Build and package
-        run: VERSION="${GITHUB_REF_NAME#v}" make package
+        env:
+          VERSION: ${{ github.ref_name }}
+          SIGN_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY || '-' }}
+          NOTARIZE: ${{ env.APPLE_SIGNING_IDENTITY != '' && '1' || '0' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: VERSION="${VERSION#v}" make package
 
       - name: Publish GitHub release
         env:
@@ -34,6 +72,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             dist/*.dmg dist/*.zip dist/SHA256SUMS.txt \
             --title "Defaultly ${GITHUB_REF_NAME#v}" \
-            --notes-file .github/release-notes.md \
-            --generate-notes \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
             --verify-tag
