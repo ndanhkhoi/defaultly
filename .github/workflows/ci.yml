@@ -31,6 +31,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: UI smoke test
+        run: make smoke-test
+
       - name: Build universal app
         run: make package
 

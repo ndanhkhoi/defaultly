@@ -6,7 +6,7 @@ export SDKROOT := $(SDK)
 TEST_FLAGS := -Xswiftc -plugin-path -Xswiftc $(shell xcode-select -p)/usr/lib/swift/host/plugins/testing
 endif
 
-.PHONY: build test integration-test lint app universal package run icon clean
+.PHONY: build test integration-test smoke-test lint app universal package run icon clean
 
 build:
 	swift build
@@ -16,6 +16,9 @@ test:
 
 integration-test:
 	DEFAULTLY_INTEGRATION=1 swift test $(TEST_FLAGS) --filter LaunchServicesIntegrationTests
+
+smoke-test:
+	scripts/smoke-test.sh
 
 lint:
 	plutil -lint Resources/Info.plist Resources/*.lproj/*

@@ -8,6 +8,7 @@ Guidance for Claude Code when working in this repository.
 make build             # swift build (debug)
 make test              # unit tests (Swift Testing)
 make integration-test  # touches real LaunchServices with a made-up extension only
+make smoke-test        # launches a debug build that clicks through every screen; fails on crash (also on CI)
 make lint              # plutil -lint Info.plist and .strings/.stringsdict
 make app               # dist/Defaultly.app for this Mac's architecture
 make universal         # dist/Defaultly.app for arm64 + x86_64
@@ -38,6 +39,9 @@ Read `docs/system-architecture.md` first; `docs/project-overview-pdr.md` is the 
 
 - SOLID, YAGNI → KISS → DRY; see `docs/code-standards.md`.
 - Liquid Glass APIs only through `Support/Glass.swift` (each has a macOS 14–15 fallback); glass only on controls.
+- Row/cell/menu views get plain values, never `@Environment(AppModel.self)`: macOS updates cells of removed
+  rows outside the hierarchy and SwiftUI traps ("No Observable object of type AppModel found"). This crashed v1.0.0
+  when switching categories; `make smoke-test` guards it.
 - English strings are the localization keys. Add every new user-facing string to
   `Resources/vi.lproj/Localizable.strings`; counted English strings go in `Resources/en.lproj/Localizable.stringsdict`.
   A test fails if a catalog name lacks a Vietnamese translation.

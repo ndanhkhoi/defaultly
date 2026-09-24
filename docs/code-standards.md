@@ -19,6 +19,7 @@
 - Glass only for the control layer (toolbar, floating status bar, action buttons), never for content.
 - Every screen handles loading / empty / normal / selected / pending / applying / success-undo / error-recovery.
 - Icon-only buttons have `.help` and an accessibility label. Color is never the only signal.
+- Views inside `Table` cells, `List`/`Form` rows and menus take plain values (or the model as an explicit parameter) and never read `@Environment(AppModel.self)` / `@Environment(Navigation.self)`. AppKit hosts them separately and keeps updating cells of removed rows after they leave the hierarchy, where the environment object is missing and SwiftUI traps. Screen-level views may read the environment.
 
 ## Localization
 - English text is the key. Every user-facing string must also be added to `Resources/vi.lproj/Localizable.strings`.
@@ -27,7 +28,7 @@
 
 ## Tests
 - Swift Testing (`import Testing`). Core is tested with fake ports. No test touches the real LaunchServices database, except the opt-in integration test (`DEFAULTLY_INTEGRATION=1`), which only uses a made-up extension.
-- Run `swift test` before every commit.
+- Run `make test` before every commit, and `make smoke-test` after UI changes: a debug-only `SmokeTest` drives every screen, selection, sheet and toast in the real app and fails on any crash. CI runs both.
 
 ## Git
 - Conventional Commits (`feat:`, `fix:`, `ci:`, `docs:`, `test:`, `chore:`).

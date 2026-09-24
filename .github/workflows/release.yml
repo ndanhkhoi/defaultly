@@ -21,6 +21,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: UI smoke test
+        run: make smoke-test
+
       - name: Build and package
         run: VERSION="${GITHUB_REF_NAME#v}" make package
 
