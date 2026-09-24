@@ -35,6 +35,7 @@ struct FakeAppLocator: AppLocating {
 /// `ownedByOthers`: instant writes are ignored, interactive ones work (like types another app owns).
 /// `rejected`: every write is ignored. `failing`: every write throws.
 /// `declining`: the interactive write throws as if the user declined the system prompt.
+/// `instantWritesAreSilent: false` behaves like macOS 27, where only the interactive write should be used.
 final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
     struct Failure: LocalizedError { var errorDescription: String? { "boom" } }
 
@@ -46,6 +47,7 @@ final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
     private let rejected: Set<FileExtension>
     private let failing: Set<FileExtension>
     private let declining: Set<FileExtension>
+    let instantWritesAreSilent: Bool
 
     init(
         defaults: [FileExtension: URL] = [:],
@@ -53,7 +55,8 @@ final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
         ownedByOthers: Set<FileExtension> = [],
         rejected: Set<FileExtension> = [],
         failing: Set<FileExtension> = [],
-        declining: Set<FileExtension> = []
+        declining: Set<FileExtension> = [],
+        instantWritesAreSilent: Bool = true
     ) {
         self.defaults = defaults
         self.candidates = candidates
@@ -61,6 +64,7 @@ final class FakeLaunchServices: LaunchServicesClient, @unchecked Sendable {
         self.rejected = rejected
         self.failing = failing
         self.declining = declining
+        self.instantWritesAreSilent = instantWritesAreSilent
     }
 
     /// Which methods were used for an extension, in order.

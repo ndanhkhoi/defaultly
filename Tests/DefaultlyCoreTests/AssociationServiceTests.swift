@@ -56,6 +56,32 @@ struct AssociationServiceTests {
         #expect(launchServices.methods(for: doc) == [.instant])
     }
 
+    @Test func asksOncePerFormatWhenInstantWritesArentSilent() async {
+        let doc = FileExtension.ext("doc")
+        let launchServices = FakeLaunchServices(
+            defaults: [docx: AppInfo.word.url, doc: AppInfo.libre.url],
+            instantWritesAreSilent: false
+        )
+        let report = await service(launchServices).apply([Assignment(ext: docx, app: .libre), Assignment(ext: doc, app: .libre)])
+        #expect(report.outcomes.map(\.result) == [.applied, .applied])
+        #expect(launchServices.methods(for: docx) == [.interactive])
+        // Already opens with it: nothing to ask about.
+        #expect(launchServices.methods(for: doc) == [])
+    }
+
+    @Test func stopsAtTheFirstDeclineWhenInstantWritesArentSilent() async {
+        let doc = FileExtension.ext("doc")
+        let launchServices = FakeLaunchServices(
+            defaults: [docx: AppInfo.word.url, doc: AppInfo.word.url],
+            declining: [docx],
+            instantWritesAreSilent: false
+        )
+        let report = await service(launchServices).apply([Assignment(ext: docx, app: .libre), Assignment(ext: doc, app: .libre)])
+        #expect(report.outcomes.map(\.result) == [.notAccepted(actual: .word), .notAccepted(actual: .word)])
+        #expect(launchServices.methods(for: docx) == [.interactive])
+        #expect(launchServices.methods(for: doc) == [])
+    }
+
     @Test func reportsFailuresWithoutRetryingThem() async {
         let odt = FileExtension.ext("odt")
         let launchServices = FakeLaunchServices(failing: [docx])

@@ -9,6 +9,9 @@ come from this file.
   checked by itself. It now shows the update, as it does on earlier versions of macOS.
 - **Fixed:** in **Help → Release Notes**, the button next to **Check for Updates…** that opens every release on GitHub
   now looks like a toolbar button.
+- **Fixed:** on macOS 27, changing a default app could ask for confirmation two or three times for the same format,
+  and choosing **Keep** didn't stop the questions for the rest of the change. macOS still asks once for each format
+  (this can't be turned off); choosing **Keep** once now skips the remaining formats.
 
 ## 1.1.1 - 2026-09-24
 

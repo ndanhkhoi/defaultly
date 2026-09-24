@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// How a default app is written.
 public enum AssignmentMethod: Sendable {
     /// Writes the handler directly: instant and silent, but macOS may quietly ignore it
-    /// for types another app owns.
+    /// for types another app owns. Not silent from macOS 27 (see `instantWritesAreSilent`).
     case instant
     /// Asks macOS through `NSWorkspace`: about 2 s per call, and macOS may ask the user to confirm.
     case interactive
@@ -16,6 +16,9 @@ public protocol LaunchServicesClient: Sendable {
     func defaultApplication(for ext: FileExtension) -> URL?
     /// Apps that declare they can open the extension, most relevant first.
     func applications(for ext: FileExtension) -> [URL]
+    /// False from macOS 27: an instant write then queues a system confirmation for each content type and returns
+    /// before the user answers, so it asks more often than the interactive method and can't tell what they chose.
+    var instantWritesAreSilent: Bool { get }
     func setDefaultApplication(_ app: AppInfo, for ext: FileExtension, using method: AssignmentMethod) async throws
 }
 
@@ -48,6 +51,12 @@ public struct SystemLaunchServices: LaunchServicesClient {
         return ext.contentTypes
             .flatMap { NSWorkspace.shared.urlsForApplications(toOpen: $0) }
             .filter { seen.insert($0.standardizedFileURL.path).inserted }
+    }
+
+    public var instantWritesAreSilent: Bool {
+        guard Self.setRoleHandler != nil else { return false }
+        if #available(macOS 27, *) { return false }
+        return true
     }
 
     /// Instant writes cover every content type of the extension. The interactive API sets only the

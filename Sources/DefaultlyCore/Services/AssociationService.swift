@@ -38,6 +38,8 @@ public struct AssociationService: Sendable {
 
     /// Writes every assignment instantly, waits for LaunchServices to confirm, then retries the
     /// ones macOS ignored through the interactive API (where macOS may ask the user to allow it).
+    /// Where instant writes aren't silent (macOS 27), only the interactive API is used, so macOS asks once per
+    /// format, and the first "Keep" stops the batch.
     public func apply(_ assignments: [Assignment]) async -> ApplyReport {
         var previous: [FileExtension: AppInfo] = [:]
         for assignment in assignments {
@@ -45,15 +47,19 @@ public struct AssociationService: Sendable {
         }
 
         var failures: [FileExtension: String] = [:]
-        for assignment in assignments {
-            do {
-                try await launchServices.setDefaultApplication(assignment.app, for: assignment.ext, using: .instant)
-            } catch {
-                failures[assignment.ext] = error.localizedDescription
+        var unconfirmed: [Assignment]
+        if launchServices.instantWritesAreSilent {
+            for assignment in assignments {
+                do {
+                    try await launchServices.setDefaultApplication(assignment.app, for: assignment.ext, using: .instant)
+                } catch {
+                    failures[assignment.ext] = error.localizedDescription
+                }
             }
+            unconfirmed = await awaitConfirmation(of: assignments.filter { failures[$0.ext] == nil })
+        } else {
+            unconfirmed = assignments.filter { !$0.app.isSameApp(as: previous[$0.ext]) }
         }
-
-        var unconfirmed = await awaitConfirmation(of: assignments.filter { failures[$0.ext] == nil })
         for assignment in unconfirmed {
             do {
                 try await launchServices.setDefaultApplication(assignment.app, for: assignment.ext, using: .interactive)
