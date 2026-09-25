@@ -3,7 +3,7 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
-## Unreleased
+## 1.1.4 - 2026-09-25
 
 - **Fixed:** declining a change's confirmation (**Keep**) left Defaultly busy for the rest of the
   three-second verification window before it showed the results. It now reports right away; the
