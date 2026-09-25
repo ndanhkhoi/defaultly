@@ -60,18 +60,22 @@ public struct AssociationService: Sendable {
         } else {
             unconfirmed = assignments.filter { !$0.app.isSameApp(as: previous[$0.ext]) }
         }
+        var asked: [Assignment] = []
         for assignment in unconfirmed {
             do {
                 try await launchServices.setDefaultApplication(assignment.app, for: assignment.ext, using: .interactive)
+                asked.append(assignment)
             } catch LaunchServicesError.declined {
                 // One "Don't Allow" answers for the whole batch: don't keep prompting.
                 break
             } catch {
-                // The outcome reports the app macOS kept.
+                failures[assignment.ext] = error.localizedDescription
             }
         }
-        unconfirmed = await awaitConfirmation(of: unconfirmed)
-        let rejected = Set(unconfirmed.map(\.ext))
+        // Only what macOS was asked about can confirm; a declined stop leaves the rest unasked, and they
+        // report the app macOS kept. Waiting for the unasked ones would only burn the timeout.
+        let unanswered = await awaitConfirmation(of: asked)
+        let rejected = Set(unconfirmed.map(\.ext)).subtracting(asked.map(\.ext)).union(unanswered.map(\.ext))
 
         return ApplyReport(outcomes: assignments.map { assignment in
             let result: AssignmentOutcome.Result

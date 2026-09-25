@@ -3,6 +3,15 @@
 Notable changes to Defaultly. Each release's notes on GitHub, and in the app under **Help → Release Notes**,
 come from this file.
 
+## Unreleased
+
+- **Fixed:** declining a change's confirmation (**Keep**) left Defaultly busy for the rest of the
+  three-second verification window before it showed the results. It now reports right away; the
+  formats macOS wasn't asked about are reported as kept, as before.
+- **Fixed:** when the API that confirms a change failed with a system error, the format was reported
+  as "macOS kept another app" after a three-second wait. It is now reported as failed, with the
+  error's message, right away.
+
 ## 1.1.3 - 2026-09-24
 
 - **Fixed:** closing the Software Update window after choosing **Install and Relaunch** made Defaultly quit and
