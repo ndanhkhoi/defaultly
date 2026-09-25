@@ -60,7 +60,7 @@ The user checks formats, then applies.
 ### F6. Verification, Undo/Redo, Backup/Restore
 - After every change the association is read back. Changes macOS ignores are retried through the system API, which may ask the user to confirm. If macOS still keeps another app, the app says "macOS kept X" and offers recovery actions (Retry, Choose Another App).
 - Native Undo/Redo through `UndoManager` (⌘Z / ⇧⌘Z, Edit menu). The success toast has an **Undo** button.
-- Export the current associations (including custom formats) to JSON. Restore from JSON with a preview sheet before applying; missing custom formats are re-created.
+- Export the current associations (including custom formats) to JSON. Restore from JSON with a preview sheet before applying; missing custom formats are re-created, and undoing the restore removes them again.
 
 ### F7. Localization
 - English (development language) and Vietnamese (`en.lproj`, `vi.lproj`).

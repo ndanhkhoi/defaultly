@@ -11,6 +11,10 @@ come from this file.
 - **Fixed:** when the API that confirms a change failed with a system error, the format was reported
   as "macOS kept another app" after a three-second wait. It is now reported as failed, with the
   error's message, right away.
+- **Fixed:** undoing a restored backup left the custom formats it had added behind in the list. Undo
+  now takes them back out, and Redo brings them back with the associations.
+- **Fixed:** the apply controls stayed clickable in the moment before a queued change began, so a
+  double click could start the same change twice. They now disable the moment a change is asked for.
 
 ## 1.1.3 - 2026-09-24
 
