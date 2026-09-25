@@ -74,6 +74,9 @@ final class UpdateController {
     @ObservationIgnored private var isInteractive = false
     /// The `ready` update was asked for with Install and Relaunch, so changing the automatic settings keeps it.
     @ObservationIgnored private var readyWasRequested = false
+    /// An install that failed with its verified download still staged, so Try Again can swap it in
+    /// again instead of downloading the whole release once more.
+    @ObservationIgnored private var failedInstall: (prepared: PreparedUpdate, update: AvailableUpdate)?
     @ObservationIgnored private var whatsNewPending: Bool
 
     init(
@@ -164,11 +167,15 @@ final class UpdateController {
     /// Installs a background download now instead of on quit.
     func relaunchNow() {
         guard case .ready(let prepared, let update) = phase else { return }
-        do {
-            try finish(prepared)
-        } catch {
-            fail(error, update)
-        }
+        installNow(prepared, update: update)
+    }
+
+    /// Try Again after a failed install: swaps in the verified download again if it is still staged,
+    /// and otherwise checks and downloads from the beginning, as it did before.
+    func retryInstall() {
+        guard let retry = failedInstall else { return checkNow() }
+        isInteractive = true
+        installNow(retry.prepared, update: retry.update)
     }
 
     /// Relaunches the app, for example to switch languages. A downloaded update is installed first, so the new
@@ -281,7 +288,7 @@ final class UpdateController {
             }
             try Task.checkCancellation()
             if relaunching, isInteractive {
-                try finish(prepared)
+                installNow(prepared, update: update)
             } else {
                 phase = .ready(prepared, update)
                 readyWasRequested = relaunching
@@ -308,11 +315,26 @@ final class UpdateController {
     /// Installs, then starts the new version. If it can't start, the window says the update is installed.
     private func finish(_ prepared: PreparedUpdate) throws {
         try installer.install(prepared, replacing: appURL)
+        failedInstall = nil
         phase = .installed(prepared.release.version)
         dismiss()
         relaunch { [weak self] in
             guard let self else { return }
             presenter.show(self)
+        }
+    }
+
+    /// Installs a prepared download, keeping it staged for Try Again when the install fails.
+    private func installNow(_ prepared: PreparedUpdate, update: AvailableUpdate) {
+        do {
+            try finish(prepared)
+        } catch {
+            if !FileManager.default.fileExists(atPath: prepared.appURL.path) {
+                failedInstall = nil
+            } else {
+                failedInstall = (prepared, update)
+            }
+            fail(error, update)
         }
     }
 

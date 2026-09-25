@@ -111,6 +111,36 @@ struct UpdateControllerTests {
         #expect(harness.presenter.isVisible)
     }
 
+    /// The verified download stays staged, so Try Again installs it again instead of fetching it once more.
+    @Test func tryAgainAfterAFailedInstallReusesTheStagedDownload() async {
+        let harness = Harness(installFailures: 1)
+        harness.controller.checkNow()
+        await harness.finishWork()
+        harness.controller.install()
+        await harness.finishWork()
+        guard case .failed = harness.controller.phase else {
+            Issue.record("expected a failure, got \(harness.controller.phase)")
+            return
+        }
+        harness.controller.retryInstall()
+        #expect(harness.installer.prepares == 1)
+        #expect(harness.installer.installs == 2)
+        #expect(harness.controller.phase == .installed(AppVersion("1.1.0")!))
+        #expect(harness.relauncher.count == 1)
+    }
+
+    @Test func tryAgainWithoutAStagedDownloadChecksAgain() async {
+        let harness = Harness(releases: .failure(.server(status: 503)))
+        harness.controller.checkNow()
+        await harness.finishWork()
+        guard case .failed = harness.controller.phase else {
+            Issue.record("expected a failure, got \(harness.controller.phase)")
+            return
+        }
+        harness.controller.retryInstall()
+        #expect(harness.controller.phase == .checking)
+    }
+
     @Test func aFailedInstallIsShownEvenAfterTheWindowWasClosed() async {
         let harness = Harness(prepareError: .checksumMismatch)
         harness.controller.checkNow()
@@ -261,6 +291,7 @@ private struct Harness {
         prepareDelay: Duration = .zero,
         prepareError: UpdateError? = nil,
         installError: UpdateError? = nil,
+        installFailures: Int = 0,
         automaticallyInstalls: Bool = false,
         relaunchFails: Bool = false,
         lastLaunched: String? = nil,
@@ -271,7 +302,7 @@ private struct Harness {
         preferences.lastLaunchedVersion = lastLaunched.flatMap(AppVersion.init)
         let app = FileManager.default.temporaryDirectory.appendingPathComponent("defaultly-controller-\(UUID().uuidString)/Defaultly.app")
         try? FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
-        installer = FakeInstaller(delay: prepareDelay, error: prepareError, installError: installError)
+        installer = FakeInstaller(delay: prepareDelay, error: prepareError, installError: installError, installFailures: installFailures)
         relauncher = FakeRelauncher(fails: relaunchFails)
         let relauncher = relauncher
         controller = UpdateController(
@@ -368,11 +399,19 @@ private final class FakeInstaller: UpdateInstalling, @unchecked Sendable {
     private let lock = NSLock()
     private var prepareCount = 0
     private var installCount = 0
+    private var installFailuresLeft: Int
+    /// A staged bundle that exists on disk, as a verified download does.
+    private let staged: URL
 
-    init(delay: Duration, error: UpdateError?, installError: UpdateError?) {
+    init(delay: Duration, error: UpdateError?, installError: UpdateError?, installFailures: Int = 0) {
         self.delay = delay
         self.error = error
         self.installError = installError
+        installFailuresLeft = installFailures
+        staged = FileManager.default.temporaryDirectory
+            .appendingPathComponent("defaultly-fake-staging-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Defaultly.app", isDirectory: true)
+        try? FileManager.default.createDirectory(at: staged, withIntermediateDirectories: true)
     }
 
     var prepares: Int { lock.withLock { prepareCount } }
@@ -383,11 +422,19 @@ private final class FakeInstaller: UpdateInstalling, @unchecked Sendable {
         try await Task.sleep(for: delay)
         if let error { throw error }
         progress(1)
-        return PreparedUpdate(release: release, appURL: URL(fileURLWithPath: "/nonexistent/staged/Defaultly.app"))
+        return PreparedUpdate(release: release, appURL: staged)
     }
 
     func install(_ update: PreparedUpdate, replacing appURL: URL) throws {
-        lock.withLock { installCount += 1 }
+        let failThisTime = lock.withLock {
+            installCount += 1
+            if installFailuresLeft > 0 {
+                installFailuresLeft -= 1
+                return true
+            }
+            return false
+        }
         if let installError { throw installError }
+        if failThisTime { throw UpdateError.invalidSignature }
     }
 }

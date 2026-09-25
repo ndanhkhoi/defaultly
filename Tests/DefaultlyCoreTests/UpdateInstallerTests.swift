@@ -99,6 +99,21 @@ struct UpdateInstallerTests {
         #expect(throws: Never.self) { try CodeSignature.validate(installed, for: .adHoc) }
     }
 
+    /// The verified bundle goes back to staging when the swap fails, so a retry installs it again.
+    @Test func aRetryAfterAFailedSwapInstallsTheStagedBundleAgain() async throws {
+        let (installer, release) = try publish(makeApp(version: "1.1.0"))
+        defer { cleanUp() }
+        let installed = try makeApp(version: "1.0.0", name: "Applications")
+        let prepared = try await installer.prepare(release) { _ in }
+        let applications = installed.deletingLastPathComponent().path
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: applications)
+        #expect(throws: (any Error).self) { try installer.install(prepared, replacing: installed) }
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: applications)
+        try installer.install(prepared, replacing: installed)
+        #expect(shortVersion(of: installed) == "1.1.0")
+    }
+
     @Test func installChecksThePreparedAppAgain() async throws {
         let (installer, release) = try publish(makeApp(version: "1.1.0"))
         defer { cleanUp() }

@@ -86,6 +86,8 @@ public struct UpdateInstaller: UpdateInstalling {
         try fileManager.createDirectory(at: stagingFolder, withIntermediateDirectories: true)
         let archive = stagingFolder.appendingPathComponent(archiveName)
         let download = try await source.download(from: archiveURL, progress: progress)
+        // An earlier attempt's archive may have survived the staging cleanup above; the move needs the spot.
+        try? fileManager.removeItem(at: archive)
         try fileManager.moveItem(at: download, to: archive)
 
         guard try Checksums.sha256(of: archive) == expected else { throw UpdateError.checksumMismatch }
@@ -149,6 +151,8 @@ public struct UpdateInstaller: UpdateInstalling {
         try fileManager.moveItem(at: update.appURL, to: incoming)
         // One atomic exchange: either nothing changed, or `appURL` is the new app and `incoming` the old one.
         guard renamex_np(incoming.path, appURL.path, UInt32(RENAME_SWAP)) == 0 else {
+            // Put the verified bundle back, so a retry installs it again instead of downloading it once more.
+            try? fileManager.moveItem(at: incoming, to: update.appURL)
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
         try? fileManager.removeItem(at: stagingFolder)
