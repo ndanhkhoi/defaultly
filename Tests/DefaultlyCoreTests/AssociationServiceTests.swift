@@ -82,6 +82,35 @@ struct AssociationServiceTests {
         #expect(launchServices.methods(for: doc) == [])
     }
 
+    /// Production waits up to 3 s for LaunchServices; a declined batch must not sit through that.
+    @Test func aDeclineAnswersTheWholeBatchWithoutWaitingOutTheTimeout() async {
+        let doc = FileExtension.ext("doc")
+        let launchServices = FakeLaunchServices(
+            defaults: [docx: AppInfo.word.url, doc: AppInfo.word.url],
+            declining: [docx],
+            instantWritesAreSilent: false
+        )
+        let patient = AssociationService(launchServices: launchServices, apps: apps, verificationTimeout: .seconds(3))
+        let start = ContinuousClock.now
+        let report = await patient.apply([Assignment(ext: docx, app: .libre), Assignment(ext: doc, app: .libre)])
+        #expect(start.duration(to: .now) < .milliseconds(500))
+        #expect(report.outcomes.map(\.result) == [.notAccepted(actual: .word), .notAccepted(actual: .word)])
+    }
+
+    @Test func reportsInteractiveSystemErrorsAsFailures() async {
+        let launchServices = FakeLaunchServices(defaults: [docx: AppInfo.word.url], failing: [docx], instantWritesAreSilent: false)
+        let report = await service(launchServices).apply([Assignment(ext: docx, app: .libre)])
+        #expect(report.outcomes.map(\.result) == [.failed(message: "boom")])
+    }
+
+    /// LaunchServices takes a moment to report a change; the verification must outlast that lag.
+    @Test func waitsForAWriteToSettleBeforeConfirmingIt() async {
+        let launchServices = FakeLaunchServices(defaults: [docx: AppInfo.word.url], propagationDelay: .milliseconds(20))
+        let patient = AssociationService(launchServices: launchServices, apps: apps, verificationTimeout: .milliseconds(500))
+        let report = await patient.apply([Assignment(ext: docx, app: .libre)])
+        #expect(report.outcomes.map(\.result) == [.applied])
+    }
+
     @Test func reportsFailuresWithoutRetryingThem() async {
         let odt = FileExtension.ext("odt")
         let launchServices = FakeLaunchServices(failing: [docx])
