@@ -106,7 +106,7 @@ struct UpdateView: View {
             } else {
                 Button("OK") { controller.dismiss() }
             }
-            Button("Try Again") { controller.checkNow() }.primary()
+            Button("Try Again") { controller.retryInstall() }.primary()
         }
     }
 

@@ -15,6 +15,9 @@ come from this file.
   now takes them back out, and Redo brings them back with the associations.
 - **Fixed:** the apply controls stayed clickable in the moment before a queued change began, so a
   double click could start the same change twice. They now disable the moment a change is asked for.
+- **Fixed:** **Try Again** after a failed install downloaded the whole update again, even though the
+  verified copy was still on disk. It now installs that copy; only when there is nothing left to
+  install does it check and download from the beginning.
 
 ## 1.1.3 - 2026-09-24
 
