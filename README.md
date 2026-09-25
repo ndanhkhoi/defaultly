@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <b>English</b> · <a href="README.vi.md">Tiếng Việt</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/ndanhkhoi/defaultly/releases/latest"><img src="https://img.shields.io/github/v/release/ndanhkhoi/defaultly?label=download" alt="Latest release"></a>
   <a href="https://github.com/ndanhkhoi/defaultly/actions/workflows/ci.yml"><img src="https://github.com/ndanhkhoi/defaultly/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
