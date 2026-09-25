@@ -90,6 +90,46 @@ struct AppModelTests {
         #expect(await harness.eventually { harness.model.statuses[.png]?.current == .textEdit })
         #expect(!harness.undoManager.canUndo)
     }
+
+    /// The undo of a restore takes the backup's custom formats back out, not just the associations.
+    @Test func undoingARestoreAlsoRemovesItsNewCustomFormats() async throws {
+        let harness = await Harness()
+        let xyz = FileExtension("xyz")!
+        let backup = AssociationBackup(
+            statuses: [.png: FormatStatus(current: .preview, candidates: [.preview])],
+            customFormats: [CustomFormat(ext: xyz)]
+        )
+        let preview = try await harness.model.restorePreview(from: backup.encoded())
+
+        harness.undoManager.beginUndoGrouping()
+        await harness.model.restore(preview, items: preview.items, undoManager: harness.undoManager)
+        harness.undoManager.endUndoGrouping()
+        #expect(harness.model.customFormats.map(\.ext) == [xyz])
+        #expect(harness.model.statuses[.png]?.current == .preview)
+
+        harness.undoManager.undo()
+        #expect(await harness.eventually {
+            harness.model.customFormats.isEmpty && harness.model.statuses[.png]?.current == .textEdit
+        })
+
+        harness.undoManager.redo()
+        #expect(await harness.eventually {
+            harness.model.customFormats.map(\.ext) == [xyz] && harness.model.statuses[.png]?.current == .preview
+        })
+    }
+
+    /// The apply controls disable the moment an apply is asked for, not only once the queue reaches it.
+    @Test func isApplyingTurnsOnWhileAnApplyWaitsBehindAReload() async {
+        let harness = await Harness(holdingWrites: true)
+        let reloading = Task { await harness.model.reload() }
+        let applying = await harness.startApplying([Assignment(ext: .png, app: .preview)])
+        #expect(harness.model.isApplying)
+
+        harness.launchServices.releaseWrites()
+        await reloading.value
+        await applying.value
+        #expect(harness.model.statuses[.png]?.current == .preview)
+    }
 }
 
 // MARK: - Fakes

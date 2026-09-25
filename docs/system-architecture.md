@@ -62,7 +62,7 @@
 
    On macOS 27 and later, steps 2–3 are skipped (`LaunchServicesClient.instantWritesAreSilent` is false). There, the instant write is no longer silent: it returns at once but queues a system confirmation ("Do you want all documents with the extension … to open with …?") for every content type, and applies it whenever the user answers. Combined with the retry, one change could ask two or three times. Instead, every format that isn't already set goes through `NSWorkspace.setDefaultApplication`. It asks once and waits for the answer: **Use** applies it, **Keep** throws a user-cancelled error, which stops the rest of the batch. macOS asks about each format, and an app can't turn that off.
 4. **Report & Undo**: `ApplyReport` summarizes the outcomes and derives the undo/redo assignments. `ReversibleChange` (Core, unit-tested) is registered with `UndoManager` as soon as the apply is queued, holding the apply's task: ⌘Z during an apply undoes that apply once it finishes. Its handler registers the mirrored change first, so Undo and Redo keep alternating, and the entry is removed if the batch turns out to have nothing to revert.
-5. **One queue**: loads, refreshes and applies run through a single serial queue in `AppModel`, so a Refresh can never overwrite newer results and every caller of the first load waits for the same load.
+5. **One queue**: loads, refreshes and applies run through a single serial queue in `AppModel`, so a Refresh can never overwrite newer results and every caller of the first load waits for the same load. `isApplying` counts requested applies, so the controls disable the moment one is asked for, not only once the queue reaches it.
 6. **Local refresh**: only the statuses of the changed extensions are read again.
 
 ## Updates

@@ -49,6 +49,9 @@ final class AppModel {
     /// results, and an Undo pressed mid-apply runs after that apply.
     private var queueTail: Task<Void, Never>?
     private var initialLoad: Task<Void, Never>?
+    /// Applies requested but not finished, queued or running: the controls disable the moment one
+    /// is asked for, not only once the queue gets to it.
+    private var pendingApplies = 0
 
     init(service: AssociationService, locator: any AppLocating, store: CustomFormatStore) {
         self.service = service
@@ -60,7 +63,9 @@ final class AppModel {
     }
 
     var isApplying: Bool {
-        if case .applying = activity { true } else { false }
+        if pendingApplies > 0 { return true }
+        if case .applying = activity { return true }
+        return false
     }
 
     // MARK: - Loading
@@ -200,6 +205,8 @@ final class AppModel {
     /// apply undoes this change once it has finished.
     func apply(_ assignments: [Assignment], named title: String, undoManager: UndoManager?) async {
         guard !assignments.isEmpty else { return }
+        pendingApplies += 1
+        defer { pendingApplies -= 1 }
         let applying = enqueue { await self.run(assignments, title: title, offersUndo: undoManager != nil) }
         if let undoManager {
             ReversibleChange(title: title, report: applying).register(on: undoManager) { [weak self] assignments, direction in
@@ -227,6 +234,8 @@ final class AppModel {
     /// Undo and Redo: queued and verified; `ReversibleChange` already keeps them on the undo stack.
     private func execute(_ assignments: [Assignment], title: String) async {
         guard !assignments.isEmpty else { return }
+        pendingApplies += 1
+        defer { pendingApplies -= 1 }
         _ = await enqueue { await self.run(assignments, title: title, offersUndo: false) }.value
     }
 
@@ -315,7 +324,14 @@ final class AppModel {
     }
 
     func restore(_ preview: RestorePreview, items: [PlanItem], undoManager: UndoManager?) async {
-        await addCustomFormats(preview.newCustomFormats)
+        let newFormats = preview.newCustomFormats
+        await addCustomFormats(newFormats)
+        if let undoManager, !newFormats.isEmpty {
+            // The apply below registers its own undo; this one takes the added formats back with it.
+            undoManager.registerUndo(withTarget: self) { model in
+                model.removeCustomFormats(Set(newFormats.map(\.ext)), undoManager: undoManager)
+            }
+        }
         await apply(items, named: String(localized: "Restore Backup"), undoManager: undoManager)
     }
 }
