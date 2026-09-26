@@ -21,6 +21,10 @@
 </p>
 
 <p align="center">
+  <a href="https://unikorn.vn/p/defaultly?ref=defaultly" target="_blank"><img src="https://unikorn.vn/api/widgets/badge/defaultly?theme=dark" alt="Defaultly on Unikorn.vn" width="250" height="54" /></a>
+</p>
+
+<p align="center">
   <img src="docs/images/screenshot.png" alt="Defaultly showing the Documents category, its formats and the apps that open them">
 </p>
 
